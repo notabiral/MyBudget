@@ -1,70 +1,39 @@
-# Getting Started with Create React App
+# MyBudget
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A simple personal budgeting app I built to track my money month by month — salary in, expenses out, and what's left for savings. No accounts, no server: everything runs in the browser and the data never leaves your device.
 
-## Available Scripts
+**Live demo:** https://notabiral.github.io/MyBudget/
 
-In the project directory, you can run:
+## What it does
 
-### `npm start`
+- **Year-at-a-glance grid** — one table per year, with a column for every month (Jan–Dec).
+- **Expense categories** — track spending by category. It starts with my defaults (Loan, Rent, Grocery, Credit Card, Subscriptions, SIM, Apple Music and a couple of personal ones), and you can add, rename or delete categories to make it your own.
+- **Salary row** — enter your income per month.
+- **Automatic totals** — for each month the app works out:
+  - **Total** expenses
+  - **Extra** — salary minus expenses (what's left over)
+  - **Auto Savings** — leftover money carried forward month to month
+  - **Accounts** — savings you enter manually across accounts (mine are ISA, Revolut and Monzo)
+  - **Spent %** — expenses as a percentage of that month's income
+- **Summary cards** — pick a month to see Income, Expenses, Left, Auto Savings, Accounts and Spent % at a glance.
+- **CSV export** — download the whole year (categories, totals, salary, savings) as a `budget_<year>.csv` file.
+- **Private by design** — all data is stored in your browser's `localStorage`. Nothing is uploaded anywhere. The trade-off: clearing your browser data, or switching devices/browsers, means starting fresh — export a CSV if you want a backup.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Tech
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- React 19, built with Create React App (react-scripts 5)
+- Plain CSS and inline styles, no UI framework
+- State persisted to `localStorage`
 
-### `npm test`
+## Running it locally
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+npm install
+npm start        # dev server at http://localhost:3000
+npm run build    # production build in the build/ folder
+npm test         # test runner
+```
 
-### `npm run build`
+## Why I built it
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Spreadsheets did the job for years, but I wanted something quicker to update on my phone and harder to break with a stray formula. This is the result — deliberately small, one main component, and tailored to how I actually budget.
