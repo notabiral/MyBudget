@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/MyBudget/static/css/main.e6c13ad2.css",
+    "main.js": "/MyBudget/static/js/main.705753d1.js",
+    "static/js/453.58526103.chunk.js": "/MyBudget/static/js/453.58526103.chunk.js",
+    "index.html": "/MyBudget/index.html",
+    "main.e6c13ad2.css.map": "/MyBudget/static/css/main.e6c13ad2.css.map",
+    "main.705753d1.js.map": "/MyBudget/static/js/main.705753d1.js.map",
+    "453.58526103.chunk.js.map": "/MyBudget/static/js/453.58526103.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.705753d1.js"
+  ]
+}
