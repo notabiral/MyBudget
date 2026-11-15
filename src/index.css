@@ -1199,6 +1199,31 @@ svg {
   gap: 2px;
 }
 
+/* Shown when categories exist but none has a budget yet: a tinted strip,
+   not a nested card, with the next action as a real button. */
+.budgets-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+.budgets-hint p {
+  flex: 1 1 260px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.budgets-hint .button {
+  flex: none;
+}
+
 .add-row {
   display: flex;
   gap: 10px;
@@ -1423,6 +1448,15 @@ svg {
 
 .data-actions .field {
   flex: 0 1 160px;
+  min-width: 0;
+}
+
+/* The currency labels ("British pound (£)") need room: at the 160px basis
+   the selected label clipped at the chevron. This field grows to fit the
+   label and still shrinks inside narrow panels. */
+.data-actions .field-currency {
+  flex: 1 1 240px;
+  max-width: 300px;
 }
 
 .import-result {

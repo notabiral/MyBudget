@@ -8,10 +8,11 @@ browser and the data never leaves your device.
 
 ## What it does
 
-- **Overview** — the month's left-to-spend figure up front, with money in,
-  money out, saved, carried savings and spent %, a plain-language verdict,
-  spending by category, a six-month trend chart, recent activity and a
-  savings snapshot.
+- **Overview** — the month's left-to-spend figure up front (money brought
+  forward plus this month's income, minus spending and savings set aside),
+  with money in, money out, saved, brought forward and spent %, a
+  plain-language verdict, spending by category, a six-month trend chart,
+  recent activity and a savings snapshot.
 - **Entries** — income, expenses and savings transfers, with search, type
   and category filters, month/all-months views, and repeating entries
   (weekly or monthly rules that generate future entries automatically).

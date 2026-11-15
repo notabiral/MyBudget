@@ -77,6 +77,109 @@ describe("monthSummary", () => {
   });
 });
 
+describe("monthSummary opening balance and left to spend", () => {
+  it("is unchanged for the first recorded month (no opening balance)", () => {
+    // Abiral's migrated figures: January 2026 holds everything.
+    const state = stateWithTxns([
+      { date: "2026-01-01", kind: "income", amountMinor: 334800 },
+      { date: "2026-01-01", kind: "expense", amountMinor: 196299 },
+    ]);
+    const s = monthSummary(state, "2026-01");
+    expect(s.opening).toBe(0);
+    expect(s.left).toBe(138501);
+    expect(s.leftToSpend).toBe(138501);
+  });
+
+  it("shows the brought-forward balance in a later empty month", () => {
+    const state = stateWithTxns([
+      { date: "2026-01-01", kind: "income", amountMinor: 334800 },
+      { date: "2026-01-01", kind: "expense", amountMinor: 196299 },
+    ]);
+    const s = monthSummary(state, "2026-11");
+    expect(s.income).toBe(0);
+    expect(s.expenses).toBe(0);
+    expect(s.left).toBe(0);
+    expect(s.opening).toBe(138501);
+    expect(s.leftToSpend).toBe(138501);
+  });
+
+  it("combines opening balance, income, spending and savings", () => {
+    const state = stateWithTxns([
+      { date: "2026-09-01", kind: "income", amountMinor: 100000 },
+      { date: "2026-09-05", kind: "expense", amountMinor: 60000 },
+      { date: "2026-10-01", kind: "income", amountMinor: 100000 },
+      { date: "2026-10-05", kind: "expense", amountMinor: 90000 },
+      { date: "2026-10-07", kind: "saving", amountMinor: 5000 },
+    ]);
+    const s = monthSummary(state, "2026-10");
+    expect(s.opening).toBe(40000);
+    expect(s.left).toBe(10000);
+    // 40,000 brought forward + 100,000 in − 90,000 out − 5,000 saved.
+    expect(s.leftToSpend).toBe(45000);
+    expect(s.leftToSpend).toBe(s.carried);
+  });
+
+  it("keeps left month-only while leftToSpend carries history", () => {
+    const state = stateWithTxns([
+      { date: "2026-10-15", kind: "expense", amountMinor: 99999 },
+      { date: "2026-11-01", kind: "income", amountMinor: 300000 },
+      { date: "2026-11-05", kind: "expense", amountMinor: 125000 },
+      { date: "2026-11-07", kind: "saving", amountMinor: 20000 },
+    ]);
+    const s = monthSummary(state, "2026-11");
+    expect(s.left).toBe(175000);
+    expect(s.opening).toBe(-99999);
+    expect(s.leftToSpend).toBe(55001);
+  });
+
+  it("reconciles savings flows: deposits reduce, withdrawals restore", () => {
+    const state = stateWithTxns([
+      { date: "2026-10-01", kind: "income", amountMinor: 100000 },
+      { date: "2026-11-07", kind: "saving", amountMinor: 20000 },
+      { date: "2026-11-20", kind: "saving", amountMinor: -5000 },
+    ]);
+    const s = monthSummary(state, "2026-11");
+    expect(s.savings).toBe(15000);
+    expect(s.opening).toBe(100000);
+    expect(s.leftToSpend).toBe(85000);
+    expect(s.leftToSpend).toBe(s.carried);
+  });
+
+  it("counts account opening balances as already set aside", () => {
+    const state = stateWithTxns([]);
+    state.accounts = [
+      { id: "a1", name: "ISA", kind: "savings", targetMinor: null, openingMinor: 50000, color: "#000", archived: false },
+    ];
+    const s = monthSummary(state, "2026-11");
+    expect(s.opening).toBe(-50000);
+    expect(s.leftToSpend).toBe(-50000);
+  });
+
+  it("carries across the year boundary", () => {
+    const state = stateWithTxns([
+      { date: "2026-12-01", kind: "income", amountMinor: 100000 },
+      { date: "2026-12-05", kind: "expense", amountMinor: 30000 },
+    ]);
+    const s = monthSummary(state, "2027-01");
+    expect(s.opening).toBe(70000);
+    expect(s.leftToSpend).toBe(70000);
+  });
+
+  it("leftToSpend always equals the running balance through the month", () => {
+    const state = stateWithTxns([
+      { date: "2026-01-01", kind: "income", amountMinor: 334800 },
+      { date: "2026-01-01", kind: "expense", amountMinor: 196299 },
+      { date: "2026-03-10", kind: "income", amountMinor: 50000 },
+      { date: "2026-03-11", kind: "saving", amountMinor: 10000 },
+      { date: "2026-06-01", kind: "expense", amountMinor: 200000 },
+    ]);
+    for (const key of ["2026-01", "2026-02", "2026-03", "2026-06", "2026-11", "2027-02"]) {
+      const s = monthSummary(state, key);
+      expect(s.leftToSpend).toBe(s.carried);
+    }
+  });
+});
+
 describe("runningBalance (carried savings)", () => {
   it("carries leftover across months, net of savings", () => {
     const state = stateWithTxns([

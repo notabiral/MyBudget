@@ -9,19 +9,29 @@ import {
   todayISO,
 } from "../lib/dates.js";
 import { formatMoney, formatMoneyShort, formatPercent } from "../lib/money.js";
+import { axisMax, axisTicks } from "../lib/chart.js";
 import { accountBalance, categorySpend, monthSummary, totalSaved, trend } from "../lib/stats.js";
 import { Bar, CatDot, EmptyState } from "./ui.jsx";
 
 function verdictFor(summary, overCount, monthKey) {
-  const { income, expenses, left } = summary;
+  const { income, expenses, opening, leftToSpend } = summary;
   if (income === 0 && expenses === 0) {
+    if (opening > 0) {
+      return `${formatMoney(opening, summary.currency)} brought forward. Nothing recorded yet this month.`;
+    }
+    if (opening < 0) {
+      return `${formatMoney(-opening, summary.currency)} overdrawn from earlier months. Add income to get back above water.`;
+    }
     return "Nothing recorded yet. Add your first entry and the month takes shape.";
   }
-  if (income === 0) {
-    return `${formatMoney(expenses, summary.currency)} out, nothing in yet. Add your income to see the full picture.`;
+  if (leftToSpend < 0) {
+    return `Over by ${formatMoney(-leftToSpend, summary.currency)}. The month needs a plan B — or a smaller week.`;
   }
-  if (left < 0) {
-    return `Over by ${formatMoney(-left, summary.currency)}. The month needs a plan B — or a smaller week.`;
+  if (income === 0) {
+    if (opening > 0) {
+      return `${formatMoney(expenses, summary.currency)} out, nothing in yet — covered by what you brought forward.`;
+    }
+    return `${formatMoney(expenses, summary.currency)} out, nothing in yet. Add your income to see the full picture.`;
   }
   const parts = [`${formatPercent(summary.spendRatio)} of your income spent`];
   if (overCount > 0) {
@@ -33,20 +43,25 @@ function verdictFor(summary, overCount, monthKey) {
     const remaining = daysInMonth(key.year, key.month) - now.day;
     parts.push(remaining === 0 ? "last day of the month" : `${remaining} days to go`);
   }
-  return `${formatMoney(left, summary.currency)} left. ${parts.join(". ")}.`;
+  return `${formatMoney(leftToSpend, summary.currency)} left. ${parts.join(". ")}.`;
 }
 
 function TrendChart({ data, currency }) {
   const W = 560;
   const H = 190;
-  const PAD_L = 8;
+  // Axis labels live in their own left gutter, right-aligned clear of the
+  // plot, so no label can ever hide behind a bar.
+  const PAD_L = 64;
+  const PAD_R = 8;
   const PAD_B = 26;
   const PAD_T = 10;
-  const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.expenses)));
+  const rawMax = Math.max(0, ...data.map((d) => Math.max(d.income, d.expenses)));
+  const max = axisMax(rawMax);
+  const ticks = axisTicks(rawMax);
   const chartH = H - PAD_T - PAD_B;
-  const groupW = (W - PAD_L * 2) / data.length;
+  const plotW = W - PAD_L - PAD_R;
+  const groupW = plotW / data.length;
   const barW = Math.min(22, (groupW - 18) / 2);
-  const gridValues = [0, 0.5, 1];
 
   return (
     <div>
@@ -56,13 +71,13 @@ function TrendChart({ data, currency }) {
         role="img"
         aria-label={`Bar chart of money in and money out for the last ${data.length} months`}
       >
-        {gridValues.map((f) => {
-          const y = PAD_T + chartH * (1 - f);
+        {ticks.map((value) => {
+          const y = PAD_T + chartH * (1 - value / max);
           return (
-            <g key={f}>
-              <line x1={PAD_L} x2={W - PAD_L} y1={y} y2={y} stroke="var(--line)" strokeWidth="1" />
-              <text x={W - PAD_L} y={y - 4} textAnchor="end" fontSize="10" fill="var(--text-3)" fontFamily="IBM Plex Mono, monospace">
-                {formatMoneyShort(Math.round(max * f), currency)}
+            <g key={value}>
+              <line x1={PAD_L} x2={W - PAD_R} y1={y} y2={y} stroke="var(--line)" strokeWidth="1" />
+              <text x={PAD_L - 8} y={y + 3} textAnchor="end" fontSize="10" fill="var(--text-3)" fontFamily="IBM Plex Mono, monospace">
+                {formatMoneyShort(value, currency)}
               </text>
             </g>
           );
@@ -161,8 +176,8 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
     .slice(0, 3);
 
   const hasAnything = state.transactions.length > 0;
-  const figureText = formatMoney(summary.left, currency);
-  const figureNegative = summary.left < 0;
+  const figureText = formatMoney(summary.leftToSpend, currency);
+  const figureNegative = summary.leftToSpend < 0;
 
   return (
     <>
@@ -175,7 +190,7 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
             {figureNegative ? (
               <>
                 <span className="hero-figure-sign">−</span>
-                {formatMoney(-summary.left, currency)}
+                {formatMoney(-summary.leftToSpend, currency)}
               </>
             ) : (
               figureText
@@ -196,9 +211,9 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
               <dd className="hero-fact-value">{formatMoney(summary.savings, currency)}</dd>
             </div>
             <div className="hero-fact">
-              <dt className="hero-fact-label">Carried</dt>
-              <dd className={summary.carried < 0 ? "hero-fact-value is-bad" : "hero-fact-value"}>
-                {formatMoney(summary.carried, currency)}
+              <dt className="hero-fact-label">Brought forward</dt>
+              <dd className={summary.opening < 0 ? "hero-fact-value is-bad" : "hero-fact-value"}>
+                {formatMoney(summary.opening, currency)}
               </dd>
             </div>
             <div className="hero-fact">
