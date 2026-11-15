@@ -252,11 +252,15 @@ collapse to 0.01ms. No entrances, no scroll effects, no loops.
   all values are now consistently 2dp (the old export mixed raw numbers
   and `toFixed(2)` computed rows). A ledger export
   (`mybudget_transactions_<year>.csv`) lists every entry. Both formats
-  import back, with exact-duplicate detection. The import screen links
-  a read-only Google Sheet template (Monthly and Weekly tabs) with
-  numbered plain-language steps and a format spec, so the layout never
-  has to be guessed; ledger dates accept ISO or UK `DD/MM/YYYY`, and
-  skipped rows are reported by file row number with the reason.
+  import back, with exact-duplicate detection, as does a third format:
+  the week grid from the Weekly tab of the import template (weeks down
+  the side, categories across the top; Salary counts as money in,
+  savings-account columns as savings, the rest as spending). The import
+  screen links the read-only Google Sheet template (Monthly and Weekly
+  tabs) with numbered plain-language steps and a format spec, so the
+  layout never has to be guessed; ledger and week-grid dates accept
+  ISO or UK `DD/MM/YYYY`, and skipped rows are reported by file row
+  number with the reason.
 - **Privacy**: no backend, no accounts, no tracking, no network calls
   except the Google Fonts stylesheet. Nothing is uploaded anywhere.
   Clearing the browser's site data wipes MyBudget — the Data view says
@@ -337,4 +341,4 @@ Vite 6 + React 19 + Vitest. No router, no chart library, no UI
 framework — hand-rolled SVG charts, native `<dialog>` modals, one
 hand-written stylesheet. Tests cover the core maths, week/month
 periods, the weekly-budget collapse rule, migration, recurring rules
-and CSV handling (`src/lib/*.test.js`, 133 tests).
+and CSV handling (`src/lib/*.test.js`, 139 tests).

@@ -138,6 +138,12 @@ const GRID_SUMMARY_ROWS = new Set([
 function detectFormat(rows) {
   if (rows.length === 0) return "empty";
   const header = rows[0].map((c) => c.trim().toLowerCase());
+  // The week grid is checked first: its "Week starting" first cell is
+  // distinctive, and neither other format uses it, so order cannot
+  // misroute a ledger or monthly grid here.
+  if (header[0] === "week starting" && header.slice(1).some((c) => c !== "")) {
+    return "week-grid";
+  }
   if (
     header[0] === "category" &&
     MONTH_ABBR.some((m) => header.includes(m.toLowerCase()))
@@ -152,6 +158,9 @@ function detectFormat(rows) {
  * Parse CSV text into importable transactions.
  * `year` is used for grid imports (the grid has no year column).
  * `memberId` is stamped on every imported transaction.
+ * `accountNames` (the state's savings account names) decides which
+ * week-grid columns are savings; ISA, Revolut and Monzo 1P always
+ * count as savings even when no such account exists yet.
  * Returns { format, transactions, newCategoryNames, newAccountNames,
  * skipped, skippedRows, errors }. `skippedRows` names every skipped row
  * ({ row, reason }) using the file's row numbers, header row included,
@@ -159,7 +168,7 @@ function detectFormat(rows) {
  * Transactions carry categoryName/accountName (not ids) — the caller
  * resolves them against state, creating categories as needed.
  */
-export function parseImportCSV(text, { year, memberId, now = new Date().toISOString() } = {}) {
+export function parseImportCSV(text, { year, memberId, accountNames = [], now = new Date().toISOString() } = {}) {
   const rows = parseCSV(text);
   const format = detectFormat(rows);
   const result = {
@@ -181,7 +190,7 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
   }
   if (format === "unknown") {
     result.errors.push(
-      "Unrecognised format. Expected a MyBudget year grid (Category, Jan, Feb…) or a transactions ledger (Date, Type, Category, Account, Note, Amount)."
+      "Unrecognised format. Expected a MyBudget year grid (Category, Jan, Feb…), a week grid (Week starting, Salary, …) or a transactions ledger (Date, Type, Category, Account, Note, Amount)."
     );
     return result;
   }
@@ -200,6 +209,77 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
       result.newAccountNames.push(name);
     }
   };
+
+  if (format === "week-grid") {
+    // Weeks down the side, categories across the top — the Weekly tab
+    // of the import template. First cell of each row is the
+    // week-starting date; every other column is a category or a
+    // savings account. Each filled cell becomes one entry dated that
+    // Monday. Column matching is case-insensitive; the header's own
+    // casing is kept for created categories and accounts.
+    const header = rows[0].map((c) => c.trim());
+    const savingsLabels = new Set([
+      ...accountNames.map((n) => n.toLowerCase()),
+      "isa",
+      "revolut",
+      "monzo 1p",
+    ]);
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNumber = i + 1;
+      const rawDate = (row[0] || "").trim();
+      const date = parseLooseDate(rawDate);
+      if (!date) {
+        skip(
+          rowNumber,
+          rawDate === ""
+            ? "no week starting date"
+            : `week starting date "${rawDate}" is not a real date`
+        );
+        continue;
+      }
+      for (let c = 1; c < header.length; c++) {
+        const label = header[c];
+        if (!label) continue;
+        const raw = (row[c] || "").trim();
+        if (raw === "") continue;
+        const value = Number(raw);
+        if (!Number.isFinite(value)) {
+          skip(rowNumber, `${label} amount "${raw}" is not a number`);
+          continue;
+        }
+        if (value === 0) {
+          skip(rowNumber, `${label} amount is 0`);
+          continue;
+        }
+        const lower = label.toLowerCase();
+        const isSalary = lower === "salary";
+        const isSaving = !isSalary && savingsLabels.has(lower);
+        if (!isSaving && value < 0) {
+          skip(rowNumber, `${label} amount is negative`);
+          continue;
+        }
+        if (isSaving) rememberAccount(label);
+        else rememberCategory(label);
+        result.transactions.push({
+          id: newId("txn"),
+          date,
+          kind: isSalary ? "income" : isSaving ? "saving" : "expense",
+          amountMinor:
+            poundsToMinor(Math.abs(value)) * (isSaving && value < 0 ? -1 : 1),
+          categoryName: isSaving ? "" : label,
+          accountName: isSaving ? label : "",
+          memberId,
+          note: "Imported from CSV",
+          ruleId: null,
+          periodKey: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    return result;
+  }
 
   if (format === "grid") {
     const header = rows[0].map((c) => c.trim().toLowerCase());

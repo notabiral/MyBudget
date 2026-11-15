@@ -152,7 +152,17 @@ export default function DataView({
               counts as spending. The year is the one you pick below.
             </p>
             <p>
-              <strong>Weekly file</strong> (from the Weekly tab): one row per entry,
+              <strong>Weekly file</strong> (from the Weekly tab): weeks down the side,
+              categories across the top. The first column is the week starting date, a
+              Monday, and every other column is a category or a savings account — one
+              row per week, filled in with what each week cost. The Salary column
+              counts as money in; the ISA, Revolut and Monzo 1P columns count as
+              savings; every other column counts as spending. Dates as 2026-11-15 or
+              15/11/2026. Amounts are plain numbers with no £ signs or commas, for
+              example 64.20. Saving amounts can be negative for money taken out.
+            </p>
+            <p>
+              <strong>Ledger file</strong> (from a ledger export): one row per entry,
               with these columns in order: Date, Type, Category, Account, Note,
               Amount. Dates as 2026-11-15 or 15/11/2026. Type is Income, Expense or
               Saving. Amounts are plain numbers with no £ signs or commas, for example
@@ -194,8 +204,8 @@ export default function DataView({
             />
           </div>
           <p className="mt-12 text-sm muted">
-            Grid files have no year column, so imported months land in the year you pick.
-            Exact duplicates are skipped.
+            Monthly grid files have no year column, so imported months land in the year
+            you pick. Exact duplicates are skipped.
           </p>
           {importResult && (
             <p

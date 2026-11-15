@@ -176,17 +176,125 @@ describe("parseImportCSV", () => {
     ]);
   });
 
-  it("detects the Monthly template shape as grid and the Weekly template shape as ledger", () => {
+  it("detects the Monthly template shape as grid, the Weekly template shape as week-grid, and ledger exports as ledger", () => {
     const monthly = parseImportCSV("Category,Jan,Feb\nRent,1025.00,1025.00\n", {
       year: 2026,
       memberId: "m1",
     });
     expect(monthly.format).toBe("grid");
     const weekly = parseImportCSV(
+      "Week starting,Salary,Loan,ISA\n2026-11-09,750.00,125.00,50.00\n",
+      { year: 2026, memberId: "m1" }
+    );
+    expect(weekly.format).toBe("week-grid");
+    expect(weekly.transactions).toHaveLength(3);
+    const ledger = parseImportCSV(
       "Date,Type,Category,Account,Note,Amount\n15/11/2026,Expense,Groceries,,Weekly shop,64.20\n",
       { year: 2026, memberId: "m1" }
     );
-    expect(weekly.format).toBe("ledger");
-    expect(weekly.transactions).toHaveLength(1);
+    expect(ledger.format).toBe("ledger");
+    expect(ledger.transactions).toHaveLength(1);
+  });
+
+  it("matches the week-grid header case-insensitively but needs a further column", () => {
+    const mixed = parseImportCSV("week starting,salary,rent\n2026-11-09,750.00,200.00\n", {
+      year: 2026,
+      memberId: "m1",
+    });
+    expect(mixed.format).toBe("week-grid");
+    expect(mixed.transactions[0].kind).toBe("income");
+    const lone = parseImportCSV("Week starting\n2026-11-09\n", { year: 2026, memberId: "m1" });
+    expect(lone.format).toBe("unknown");
+  });
+});
+
+describe("parseImportCSV week grid", () => {
+  const header =
+    "Week starting,Salary,Loan,Loan P,SIM,Apple Music,Rent,Grocery,Flex P,Credit Card,Subscriptions,ISA,Revolut,Monzo 1P";
+
+  it("maps Salary to income, savings columns to savings and the rest to expenses, all dated the Monday", () => {
+    const text = [
+      header,
+      "2026-11-09,750.00,125.00,,,,256.25,50.00,,,,100.00,,25.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.format).toBe("week-grid");
+    expect(result.transactions).toHaveLength(6);
+    expect(result.skipped).toBe(0);
+    expect(result.transactions.every((t) => t.date === "2026-11-09")).toBe(true);
+    const income = result.transactions.find((t) => t.kind === "income");
+    expect(income).toMatchObject({ amountMinor: 75000, categoryName: "Salary" });
+    const savings = result.transactions.filter((t) => t.kind === "saving");
+    expect(savings.map((t) => t.accountName).sort()).toEqual(["ISA", "Monzo 1P"]);
+    expect(result.newAccountNames).toEqual(["ISA", "Monzo 1P"]);
+    const expenses = result.transactions.filter((t) => t.kind === "expense");
+    expect(expenses.map((t) => t.categoryName).sort()).toEqual(["Grocery", "Loan", "Rent"]);
+    expect(result.newCategoryNames).toEqual(["Salary", "Loan", "Rent", "Grocery"]);
+  });
+
+  it("matches savings columns against the state's account names, falling back to ISA, Revolut and Monzo 1P", () => {
+    const text = ["Week starting,Holiday Fund,Rent", "2026-11-09,40.00,200.00"].join("\n");
+    const withAccount = parseImportCSV(text, {
+      year: 2026,
+      memberId: "m1",
+      accountNames: ["Holiday Fund"],
+    });
+    expect(withAccount.transactions.find((t) => t.accountName === "Holiday Fund").kind).toBe(
+      "saving"
+    );
+    const withoutAccount = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(
+      withoutAccount.transactions.find((t) => t.categoryName === "Holiday Fund").kind
+    ).toBe("expense");
+    const fallback = parseImportCSV("Week starting,ISA,Revolut\n2026-11-09,40.00,20.00\n", {
+      year: 2026,
+      memberId: "m1",
+    });
+    expect(fallback.transactions.every((t) => t.kind === "saving")).toBe(true);
+  });
+
+  it("accepts DD/MM/YYYY week dates and keeps savings signs", () => {
+    const text = ["Week starting,Salary,ISA", "09/11/2026,750.00,-50.00"].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.transactions).toHaveLength(2);
+    expect(result.transactions[0].date).toBe("2026-11-09");
+    expect(result.transactions.find((t) => t.kind === "saving").amountMinor).toBe(-5000);
+  });
+
+  it("skips rows with bad dates and negative income/expense amounts, naming each", () => {
+    const text = [
+      "Week starting,Salary,Rent,ISA",
+      "not-a-date,750.00,200.00,50.00",
+      "2026-11-09,-750.00,200.00,50.00",
+      "2026-11-16,750.00,-200.00,50.00",
+      ",750.00,200.00,50.00",
+      "2026-11-23,750.00,200.00,50.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.transactions).toHaveLength(7);
+    expect(result.skipped).toBe(4);
+    expect(result.skippedRows).toEqual([
+      { row: 2, reason: 'week starting date "not-a-date" is not a real date' },
+      { row: 3, reason: "Salary amount is negative" },
+      { row: 4, reason: "Rent amount is negative" },
+      { row: 5, reason: "no week starting date" },
+    ]);
+  });
+
+  it("reports non-numeric and zero cells, and stays silent on blank cells", () => {
+    const text = [
+      "Week starting,Salary,Rent",
+      "2026-11-09,750.00,abc",
+      "2026-11-16,750.00,0",
+      "2026-11-23,750.00,",
+      "2026-11-30,,200.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.transactions).toHaveLength(4);
+    expect(result.skipped).toBe(2);
+    expect(result.skippedRows).toEqual([
+      { row: 2, reason: 'Rent amount "abc" is not a number' },
+      { row: 3, reason: "Rent amount is 0" },
+    ]);
   });
 });

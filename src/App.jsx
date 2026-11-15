@@ -430,12 +430,16 @@ export default function App() {
   }
 
   function importCSV(text, year) {
-    const memberId = stateRef.current.members[0].id;
-    const result = parseImportCSV(text, { year, memberId });
+    const prev = stateRef.current;
+    const memberId = prev.members[0].id;
+    const result = parseImportCSV(text, {
+      year,
+      memberId,
+      accountNames: prev.accounts.map((a) => a.name),
+    });
     if (result.format === "unknown" || result.format === "empty") {
       return { ok: false, message: result.errors[0] || "Could not read the file." };
     }
-    const prev = stateRef.current;
     const categoryByKey = new Map(
       prev.categories.map((c) => [`${c.kind}:${c.name.toLowerCase()}`, c])
     );
