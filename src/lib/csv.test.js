@@ -1,0 +1,118 @@
+import { describe, expect, it } from "vitest";
+import { blankState } from "./model.js";
+import { exportGridCSV, exportTransactionsCSV, parseCSV, parseImportCSV } from "./csv.js";
+
+function sampleState() {
+  const state = blankState();
+  const rent = state.categories.find((c) => c.name === "Rent");
+  const groceries = state.categories.find((c) => c.name === "Groceries");
+  const salary = state.categories.find((c) => c.name === "Salary");
+  const memberId = state.members[0].id;
+  state.transactions = [
+    { id: "t1", date: "2026-01-01", kind: "income", amountMinor: 300000, categoryId: salary.id, accountId: null, memberId, note: "", ruleId: null, periodKey: null, createdAt: "", updatedAt: "" },
+    { id: "t2", date: "2026-01-01", kind: "expense", amountMinor: 102500, categoryId: rent.id, accountId: null, memberId, note: "", ruleId: null, periodKey: null, createdAt: "", updatedAt: "" },
+    { id: "t3", date: "2026-01-05", kind: "expense", amountMinor: 24075, categoryId: groceries.id, accountId: null, memberId, note: "", ruleId: null, periodKey: null, createdAt: "", updatedAt: "" },
+    { id: "t4", date: "2026-02-01", kind: "income", amountMinor: 300000, categoryId: salary.id, accountId: null, memberId, note: "", ruleId: null, periodKey: null, createdAt: "", updatedAt: "" },
+    { id: "t5", date: "2026-02-01", kind: "expense", amountMinor: 102500, categoryId: rent.id, accountId: null, memberId, note: "", ruleId: null, periodKey: null, createdAt: "", updatedAt: "" },
+  ];
+  return state;
+}
+
+describe("exportGridCSV", () => {
+  it("keeps the legacy shape: header, category rows, Total, Salary, Extra, Auto Savings, Manual Savings", () => {
+    const csv = exportGridCSV(sampleState(), 2026);
+    const rows = parseCSV(csv);
+    expect(rows[0]).toEqual(["Category", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]);
+    const labels = rows.map((r) => r[0]);
+    expect(labels).toContain("Rent");
+    expect(labels).toContain("Total");
+    expect(labels).toContain("Salary");
+    expect(labels).toContain("Extra");
+    expect(labels).toContain("Auto Savings");
+    expect(labels).toContain("Manual Savings");
+    const rent = rows.find((r) => r[0] === "Rent");
+    expect(rent[1]).toBe("1025.00");
+    expect(rent[2]).toBe("1025.00");
+    expect(rent[3]).toBe("0.00");
+    const total = rows.find((r) => r[0] === "Total");
+    expect(total[1]).toBe("1265.75");
+    const extra = rows.find((r) => r[0] === "Extra");
+    expect(extra[1]).toBe("1734.25");
+    const auto = rows.find((r) => r[0] === "Auto Savings");
+    expect(auto[1]).toBe("1734.25");
+    expect(auto[2]).toBe("3709.25");
+  });
+});
+
+describe("exportTransactionsCSV", () => {
+  it("writes one row per transaction in date order", () => {
+    const rows = parseCSV(exportTransactionsCSV(sampleState(), 2026));
+    expect(rows[0]).toEqual(["Date", "Type", "Category", "Account", "Note", "Amount"]);
+    expect(rows).toHaveLength(6);
+    expect(rows[1][0]).toBe("2026-01-01");
+    expect(rows[1][1]).toBe("Income");
+    expect(rows[1][5]).toBe("3000.00");
+  });
+});
+
+describe("parseCSV", () => {
+  it("handles quotes, commas and CRLF", () => {
+    const rows = parseCSV('a,"b,c","d""e"\r\n1,2,3\r\n');
+    expect(rows).toEqual([
+      ["a", "b,c", 'd"e'],
+      ["1", "2", "3"],
+    ]);
+  });
+});
+
+describe("parseImportCSV", () => {
+  it("imports a legacy grid, skipping summary rows and zeros", () => {
+    const text = [
+      "Category,Jan,Feb,Mar",
+      "Rent,1025.00,1025.00,0",
+      "Grocery,210.50,188.20,",
+      "Total,1235.50,1213.20,0",
+      "Salary,3600.00,3600.00,3600.00",
+      "Extra,2364.50,2386.80,3600.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.format).toBe("grid");
+    // 2 rent + 2 grocery + 3 salary = 7
+    expect(result.transactions).toHaveLength(7);
+    expect(result.transactions.filter((t) => t.kind === "income")).toHaveLength(3);
+    expect(result.transactions[0].date).toBe("2026-01-01");
+    expect(result.newCategoryNames).toEqual(["Rent", "Grocery", "Salary"]);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("imports a transactions ledger, keeping saving signs", () => {
+    const text = [
+      "Date,Type,Category,Account,Note,Amount",
+      "2026-01-05,Expense,Groceries,,Weekly shop,64.20",
+      "2026-01-07,Saving,,ISA,Payday transfer,200.00",
+      "2026-01-20,Saving,,ISA,Withdrew for car,-50.00",
+      "2026-01-01,Income,Salary,,Pay,2900.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.format).toBe("ledger");
+    expect(result.transactions).toHaveLength(4);
+    const saving = result.transactions.find((t) => t.note === "Payday transfer");
+    expect(saving.amountMinor).toBe(20000);
+    const withdrawal = result.transactions.find((t) => t.note === "Withdrew for car");
+    expect(withdrawal.amountMinor).toBe(-5000);
+    expect(result.newAccountNames).toEqual(["ISA"]);
+  });
+
+  it("rejects unknown formats and counts bad rows as skipped", () => {
+    const unknown = parseImportCSV("hello,world\n1,2\n", { year: 2026, memberId: "m1" });
+    expect(unknown.format).toBe("unknown");
+    expect(unknown.errors.length).toBe(1);
+    const bad = parseImportCSV(
+      "Date,Type,Category,Account,Note,Amount\nnot-a-date,Expense,Food,,x,10.00\n2026-01-05,Expense,Food,,x,0\n",
+      { year: 2026, memberId: "m1" }
+    );
+    expect(bad.format).toBe("ledger");
+    expect(bad.transactions).toHaveLength(0);
+    expect(bad.skipped).toBe(2);
+  });
+});
