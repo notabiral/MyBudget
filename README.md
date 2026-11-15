@@ -113,8 +113,9 @@ GitHub Pages serves the `gh-pages` branch via manual deploy — merging to
 
 ```bash
 npm run build
-# push the dist/ output to the gh-pages branch (base path /MyBudget/,
-# set in vite.config.js), keeping the live site at
+# push the dist/ output to the gh-pages branch (the build uses
+# relative asset paths, set in vite.config.js, so the same output
+# serves from any path), keeping the live site at
 # https://notabiral.github.io/MyBudget/
 ```
 

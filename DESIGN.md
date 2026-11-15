@@ -331,8 +331,10 @@ Vercel guideline waivers:
 
 GitHub Pages serves the `gh-pages` branch. That branch is a manual
 deployment: build locally (`npm run build`) and push the `dist/` output
-to `gh-pages`, with `base: "/MyBudget/"` in `vite.config.js`. Merging to
-`main` does not deploy. Never commit build output to `main`. The live
+to `gh-pages`. Merging to `main` does not deploy. Never commit build
+output to `main`. The build uses relative asset paths (`base: "./"` in
+`vite.config.js`), so the same output serves from any path — GitHub
+Pages under `/MyBudget/` and Vercel at the domain root. The live
 site must keep serving at `https://notabiral.github.io/MyBudget/`.
 
 ## Stack
