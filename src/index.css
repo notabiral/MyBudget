@@ -1097,6 +1097,85 @@ svg {
   color: var(--text-2);
 }
 
+/* Inline amount editing: the amount is a button that looks like the
+   figure until hovered, then opens the Budgets-style input. */
+.txn-amount-button {
+  background: none;
+  border: 0;
+  padding: 6px 8px;
+  min-height: 44px;
+  border-radius: 8px;
+  cursor: text;
+  color: inherit;
+}
+
+.txn-amount-button:hover {
+  background: var(--surface-2);
+}
+
+.txn-amount-input {
+  width: 140px;
+  min-height: 44px;
+  text-align: right;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Quick add ---------- */
+
+.quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+}
+
+.quick-add-kind {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  flex: 0 1 auto;
+}
+
+.quick-add-amount {
+  flex: 0 1 130px;
+  min-width: 0;
+}
+
+.quick-add-date {
+  flex: 0 1 160px;
+  min-width: 0;
+}
+
+.quick-add-target {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.quick-add-note {
+  flex: 2 1 220px;
+  min-width: 0;
+}
+
+.quick-add-submit-field {
+  flex: 0 0 auto;
+}
+
+.quick-add-submit-field .button {
+  min-height: 48px;
+}
+
+.quick-add-status,
+.quick-add-hint {
+  margin-top: 12px;
+}
+
+.quick-add-status {
+  color: var(--good);
+  font-weight: 600;
+}
+
 .txn-row-actions {
   display: flex;
   gap: 2px;
@@ -1715,6 +1794,31 @@ svg {
 
   .dialog-actions .button {
     flex: 1;
+  }
+
+  /* Quick add stacks to one field per row at 390px, with a full-width
+     Add button — nothing overflows the panel. */
+  .quick-add-amount,
+  .quick-add-date,
+  .quick-add-target,
+  .quick-add-note {
+    flex: 1 1 100%;
+  }
+
+  .quick-add-kind {
+    flex: 1 1 100%;
+  }
+
+  .quick-add-kind .segmented {
+    width: 100%;
+  }
+
+  .quick-add-submit-field {
+    flex: 1 1 100%;
+  }
+
+  .quick-add-submit-field .button {
+    width: 100%;
   }
 }
 

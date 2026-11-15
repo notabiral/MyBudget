@@ -248,6 +248,15 @@ export default function App() {
     setDialog(null);
   }
 
+  // Inline amount edit from the Entries rows: an ordinary edit, like the
+  // Budgets inputs — persisted, no toast, no undo.
+  function updateTxnAmount(id, amountMinor) {
+    update((prev) => ({
+      ...prev,
+      transactions: prev.transactions.map((t) => (t.id === id ? { ...t, amountMinor } : t)),
+    }));
+  }
+
   // ---------- Categories ----------
 
   function createCategory(name, kind) {
@@ -780,8 +789,11 @@ export default function App() {
             periodMode={periodMode}
             weekKey={weekKey}
             monthKey={monthKey}
+            defaultDate={defaultDate}
             onAddEntry={openAddEntry}
+            onQuickAdd={saveEntry}
             onEditTxn={openEditEntry}
+            onUpdateTxnAmount={updateTxnAmount}
             onDeleteTxn={deleteEntry}
             onToggleRule={toggleRule}
             onDeleteRule={deleteRule}

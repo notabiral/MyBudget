@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { formatDate, monthLabel, weekLabel } from "../lib/dates.js";
 import { formatMoney } from "../lib/money.js";
+import { commitInlineAmount } from "../lib/quickadd.js";
 import { filterTransactions } from "../lib/stats.js";
 import { describeRule } from "../lib/recurring.js";
+import QuickAdd from "./QuickAdd.jsx";
 import { CatDot, EmptyState } from "./ui.jsx";
 
 function groupByDate(txns) {
@@ -20,8 +22,11 @@ export default function Transactions({
   periodMode,
   weekKey,
   monthKey,
+  defaultDate,
   onAddEntry,
+  onQuickAdd,
   onEditTxn,
+  onUpdateTxnAmount,
   onDeleteTxn,
   onToggleRule,
   onDeleteRule,
@@ -33,6 +38,23 @@ export default function Transactions({
   const [kind, setKind] = useState("all");
   const [categoryId, setCategoryId] = useState("all");
   const [showAll, setShowAll] = useState(false);
+  // Inline amount editing, following the Budgets blur-commit pattern:
+  // tap an amount, edit, blur or Enter commits, Escape reverts.
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState("");
+
+  function startAmountEdit(txn) {
+    setEditingId(txn.id);
+    setDraft(String(txn.amountMinor / 100));
+  }
+
+  function commitAmountEdit(txn) {
+    const committed = commitInlineAmount(draft, txn.kind);
+    if (committed !== null && committed !== txn.amountMinor) {
+      onUpdateTxnAmount(txn.id, committed);
+    }
+    setEditingId(null);
+  }
 
   const categoryById = new Map(state.categories.map((c) => [c.id, c]));
   const accountById = new Map(state.accounts.map((a) => [a.id, a]));
@@ -70,6 +92,8 @@ export default function Transactions({
           Add entry
         </button>
       </div>
+
+      <QuickAdd state={state} defaultDate={defaultDate} onQuickAdd={onQuickAdd} />
 
       {state.rules.length > 0 && (
         <section className="panel mt-24" aria-labelledby="repeating-title">
@@ -223,6 +247,14 @@ export default function Transactions({
                   const acct = accountById.get(t.accountId);
                   const title = t.note || cat?.name || acct?.name || "Entry";
                   const sub = [cat?.name, acct?.name].filter(Boolean).join(" · ");
+                  const amountClass =
+                    t.kind === "income"
+                      ? "txn-amount is-income"
+                      : t.kind === "saving"
+                        ? "txn-amount is-saving"
+                        : "txn-amount";
+                  const sign =
+                    t.kind === "income" ? "+" : t.kind === "expense" ? "−" : t.amountMinor < 0 ? "−" : "+";
                   return (
                     <li className="txn-row" key={t.id}>
                       <div className="txn-row-main">
@@ -236,18 +268,35 @@ export default function Transactions({
                           {sub && <p className="txn-row-sub">{sub}</p>}
                         </div>
                       </div>
-                      <p
-                        className={
-                          t.kind === "income"
-                            ? "txn-amount is-income"
-                            : t.kind === "saving"
-                              ? "txn-amount is-saving"
-                              : "txn-amount"
-                        }
-                      >
-                        {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : t.amountMinor < 0 ? "−" : "+"}
-                        {formatMoney(Math.abs(t.amountMinor), currency)}
-                      </p>
+                      {editingId === t.id ? (
+                        <input
+                          className="input txn-amount-input"
+                          name="entry-amount"
+                          autoComplete="off"
+                          inputMode="decimal"
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onBlur={() => commitAmountEdit(t)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          aria-label={`Amount for ${title}`}
+                          data-autofocus
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className={`${amountClass} txn-amount-button`}
+                          onClick={() => startAmountEdit(t)}
+                          aria-label={`Edit amount for ${title}`}
+                          title="Edit amount"
+                        >
+                          {sign}
+                          {formatMoney(Math.abs(t.amountMinor), currency)}
+                        </button>
+                      )}
                       <div className="txn-row-actions">
                         <button
                           type="button"

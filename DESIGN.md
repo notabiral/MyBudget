@@ -143,6 +143,20 @@ Shadows: `--shadow-1` (resting panels), `--shadow-2` (dialogs, toasts).
   figures. Axis labels sit in a left gutter, right-aligned clear of the
   plot, on a nice-number scale (1/2/2.5/5 × 10^k, floored at £1) so no
   label ever hides behind a bar or repeats on a quiet window. No chart library.
+- **Quick add**: the row pinned at the top of the Entries view — type
+  (money out / money in / savings, segmented radios), amount, date,
+  category or savings account, note, and an Add button. Enter saves and
+  clears amount and note for the next entry, keeping the type, category
+  and date, and moves focus back to the amount for rapid entry. The
+  category picker defaults to the last-used category of that kind (from
+  any entry, including dialog-added ones). The date defaults to today
+  when viewing the current period, else the period's first day, and
+  follows period navigation. Savings entries here are deposits only;
+  withdrawals, repeating entries and full edits stay in the dialog.
+  Existing rows edit their amount inline, following the Budgets
+  blur-commit pattern exactly: tap the amount, edit, blur or Enter
+  commits, Escape cancels, an invalid draft reverts visibly to the saved
+  value. Edit/delete icon buttons and the delete undo-toast are unchanged.
 - **Budgets**: one row per spending category with a budget input
   that commits on blur. Weekly and monthly budgets are separate amounts
   (`weeklyBudgetMinor`, `monthlyBudgetMinor`): week mode edits weekly
@@ -284,7 +298,8 @@ Vercel guideline waivers:
   part of the value.
 - **Budget blur-commit errors**: waived. An invalid budget draft reverts
   visibly to the last saved value on blur; no error state is needed for
-  a reverted draft.
+  a reverted draft. The same rule covers inline amount edits on entry
+  rows.
 - **Page rubber-band suppression**: waived. Pull-to-refresh is preserved;
   the guideline itself flags the hybrid-device risk of disabling it.
 - **List virtualization**: implemented as `content-visibility: auto` on
@@ -293,7 +308,11 @@ Vercel guideline waivers:
   justified.
 - **autoFocus**: justified, not waived. One primary target per surface:
   the dialog's first field (via `data-autofocus`), the rename input
-  after an explicit Rename click, the onboarding primary button.
+  after an explicit Rename click, the onboarding primary button, and
+  the inline amount input after an explicit tap on an amount. The
+  quick-add amount input is refocused after each save so rapid entry
+  keeps working — a focus move after an explicit user action, announced
+  by the success line.
 - **Money inputs use text + `inputmode="decimal"`** instead of
   `type="number"`: deliberate — avoids spinner and locale quirks; the
   standard money-input pattern.
@@ -312,4 +331,4 @@ Vite 6 + React 19 + Vitest. No router, no chart library, no UI
 framework — hand-rolled SVG charts, native `<dialog>` modals, one
 hand-written stylesheet. Tests cover the core maths, week/month
 periods, the weekly-budget collapse rule, migration, recurring rules
-and CSV handling (`src/lib/*.test.js`, 106 tests).
+and CSV handling (`src/lib/*.test.js`, 122 tests).

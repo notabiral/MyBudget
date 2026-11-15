@@ -19,6 +19,9 @@ browser and the data never leaves your device.
 - **Entries** — income, expenses and savings transfers, with search, type
   and category filters, period/all-time views, and repeating entries
   (weekly or monthly rules that generate future entries automatically).
+  A quick-add row at the top takes amount, type, category, note and
+  date in one line and clears for the next entry; amounts on existing
+  rows edit inline with a tap.
 - **Budgets** — a budget per spending category, with spent/left
   indicators and over-budget flags. Weekly and monthly budgets are
   separate amounts: week mode edits weekly amounts, month mode edits
@@ -81,7 +84,7 @@ you pick the year on import. Exact duplicates are skipped.
 npm install
 npm run dev      # dev server at http://localhost:5173
 npm run build    # production build in the dist/ folder
-npm test         # test suite (106 tests)
+npm test         # test suite (122 tests)
 ```
 
 ## Deploying
