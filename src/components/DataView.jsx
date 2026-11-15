@@ -217,7 +217,7 @@ export default function DataView({
           <h2 id="currency-title">Currency</h2>
           <p>Changes how amounts are displayed. Your figures stay exactly as entered.</p>
           <div className="data-actions">
-            <div className="field">
+            <div className="field field-currency">
               <label htmlFor="currency-select">Display currency</label>
               <select
                 id="currency-select"

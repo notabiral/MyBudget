@@ -115,15 +115,28 @@ Shadows: `--shadow-1` (resting panels), `--shadow-2` (dialogs, toasts).
 - **Hero**: near-black band, mono eyebrow (the month + "Left to spend"),
   the Big Number in Space Grotesk 700, a one-line verdict in plain
   language, five facts in a definition list (Money in / Money out /
-  Saved / Carried / Spent), and a month-elapsed bar in the current month.
+  Saved / Brought forward / Spent), and a month-elapsed bar in the current month.
   A negative figure shows a real minus sign, never colour alone.
+  The Big Number is left-to-spend: money brought forward (the running
+  balance through the previous month) + this month's income − spending −
+  savings set aside. It is identical to the running balance through the
+  month. The month-only income-minus-expenses figure ("Extra") is kept
+  for the legacy year-grid CSV only, never shown as the hero.
 - **Bars**: 8px tracks in `--surface-2`, fill via `transform: scaleX()`
   (compositor-friendly, never a width animation), red past 100%. Every
   bar has an accessible name with the real figures; the bar is never the
   only signal.
 - **Trend chart**: hand-rolled SVG, paired bars per month (money in /
   money out), with a visually-hidden data table carrying the same
-  figures. No chart library.
+  figures. Axis labels sit in a left gutter, right-aligned clear of the
+  plot, on a nice-number scale (1/2/2.5/5 × 10^k, floored at £1) so no
+  label ever hides behind a bar or repeats on a quiet window. No chart library.
+- **Budgets**: one row per spending category with a monthly-budget input
+  that commits on blur. When no category has a budget yet, a tinted hint
+  strip explains that budgets repeat monthly and offers a button that
+  moves focus to the first budget input. Budgets are never invented or
+  auto-assigned; the header shows "No budgets set yet" instead of a
+  £0-of-£0 line until the first budget exists.
 - **Panels**: white surfaces, 1px `--line` border, 20px radius, no
   cards-within-cards.
 - **Dialogs**: native `<dialog>` (Escape closes, browser top-layer focus
@@ -274,4 +287,4 @@ site must keep serving at `https://notabiral.github.io/MyBudget/`.
 Vite 6 + React 19 + Vitest. No router, no chart library, no UI
 framework — hand-rolled SVG charts, native `<dialog>` modals, one
 hand-written stylesheet. Tests cover the core maths, migration,
-recurring rules and CSV handling (`src/lib/*.test.js`, 44 tests).
+recurring rules and CSV handling (`src/lib/*.test.js`, 59 tests).

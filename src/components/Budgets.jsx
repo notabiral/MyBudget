@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { monthLabel } from "../lib/dates.js";
 import { currencyOf, formatMoney, parseMoney } from "../lib/money.js";
 import { categorySpend } from "../lib/stats.js";
@@ -25,6 +25,11 @@ export default function Budgets({
 
   const incomeCategories = state.categories.filter((c) => c.kind === "income");
   const archived = state.categories.filter((c) => c.archived);
+  const listRef = useRef(null);
+
+  function focusFirstBudgetInput() {
+    listRef.current?.querySelector('input[name="monthly-budget"]')?.focus();
+  }
 
   function commitBudget(categoryId, raw) {
     const text = String(raw ?? "").trim();
@@ -52,6 +57,7 @@ export default function Budgets({
 
   const totalBudget = rows.reduce((s, r) => s + (r.budget || 0), 0);
   const totalSpent = rows.reduce((s, r) => s + r.spent, 0);
+  const hasAnyBudget = totalBudget > 0;
 
   return (
     <div className="wrap view">
@@ -69,16 +75,31 @@ export default function Budgets({
         <div className="section-head">
           <h2 className="section-title" id="spending-budgets">Spending budgets</h2>
           <p className="text-sm muted">
-            {formatMoney(totalSpent, currency)} of {formatMoney(totalBudget, currency)} budgeted
+            {hasAnyBudget
+              ? `${formatMoney(totalSpent, currency)} of ${formatMoney(totalBudget, currency)} budgeted`
+              : "No budgets set yet"}
           </p>
         </div>
+
+        {rows.length > 0 && !hasAnyBudget && (
+          <div className="budgets-hint">
+            <p>
+              Budgets repeat every month until you change them. Your spending is
+              already tracked below — set a monthly amount per category to see
+              how each one is doing.
+            </p>
+            <button type="button" className="button" onClick={focusFirstBudgetInput}>
+              Set your first budget
+            </button>
+          </div>
+        )}
 
         {rows.length === 0 ? (
           <EmptyState title="No spending categories">
             <p>Add a category below to start budgeting it.</p>
           </EmptyState>
         ) : (
-          <ul>
+          <ul ref={listRef}>
             {rows.map((r) => {
               const category = r.category;
               if (!category) return null;

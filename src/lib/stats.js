@@ -6,7 +6,16 @@
 // - expenses:  sum of expense transactions in the month
 // - savings:   net sum of saving transactions in the month (deposits minus
 //              withdrawals; saving transactions may be negative)
-// - left:      income minus expenses ("Extra" in the old app)
+// - left:      income minus expenses ("Extra" in the old app). Month-only,
+//              ignoring anything brought forward; kept for the
+//              legacy-compatible year grid and CSV export.
+// - opening:   money brought forward into the month: the running balance
+//              through the previous month (cumulative income minus expenses
+//              minus savings, net of savings-account opening balances).
+// - leftToSpend: opening + income - expenses - savings. The spendable
+//              figure for the month, shown as the hero number. Identical
+//              to the running balance through this month ("carried") by
+//              construction; the identity is asserted in the tests.
 // - spend %:   expenses as a share of income; 0 when there is no income
 // - carried:   running balance — cumulative income minus expenses minus
 //              savings, from the first recorded month through this one.
@@ -34,6 +43,8 @@ export function monthSummary(state, key) {
   const expenses = sumKind(txns, "expense");
   const savings = sumKind(txns, "saving");
   const left = income - expenses;
+  const opening = runningBalance(state, shiftMonth(key, -1));
+  const leftToSpend = opening + income - expenses - savings;
   const spendRatio = income > 0 ? expenses / income : 0;
   return {
     key,
@@ -41,6 +52,8 @@ export function monthSummary(state, key) {
     expenses,
     savings,
     left,
+    opening,
+    leftToSpend,
     spendRatio,
     carried: runningBalance(state, key),
     count: txns.length,
