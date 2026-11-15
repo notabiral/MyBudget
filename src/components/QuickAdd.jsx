@@ -6,6 +6,7 @@ import {
   defaultQuickAddCategory,
   lastUsedTargetId,
   quickAddPayload,
+  repeatingDraft,
 } from "../lib/quickadd.js";
 
 /**
@@ -15,11 +16,15 @@ import {
  * The category picker remembers the last-used category (from any entry,
  * including ones added in the full dialog). Savings entries here are
  * deposits only; withdrawals and repeating entries stay in the dialog.
+ * Every entry added here is a one-off — the caption says so, and
+ * "Make it repeating" opens the full dialog with repeating turned on
+ * and the typed draft carried over.
  *
  * Props: state, defaultDate, onQuickAdd(payload) — the payload matches
- * the shape App.saveEntry accepts for a new transaction.
+ * the shape App.saveEntry accepts for a new transaction — and
+ * onMakeRepeating(draft) for the repeating shortcut.
  */
-export default function QuickAdd({ state, defaultDate, onQuickAdd }) {
+export default function QuickAdd({ state, defaultDate, onQuickAdd, onMakeRepeating }) {
   const currency = state.currency;
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -86,11 +91,20 @@ export default function QuickAdd({ state, defaultDate, onQuickAdd }) {
 
   const noTarget = kind === "saving" ? accounts.length === 0 : categories.length === 0;
 
+  function handleMakeRepeating() {
+    // No validation here: whatever is typed carries over raw, and the
+    // dialog validates on submit. The dialog can also create a new
+    // category/account inline, so this stays enabled with no target.
+    onMakeRepeating(
+      repeatingDraft({ amountText: amount, kind, date, categoryId, accountId, note })
+    );
+  }
+
   return (
     <section className="panel quick-add-panel" aria-labelledby="quick-add-title">
       <div className="section-head">
         <h2 className="section-title" id="quick-add-title">Quick add</h2>
-        <p className="text-sm muted">Enter saves, ready for the next one.</p>
+        <p className="text-sm muted">One-off entries only. Enter saves, ready for the next one.</p>
       </div>
       <form ref={formRef} className="quick-add" onSubmit={handleSubmit} noValidate>
         <fieldset className="quick-add-kind">
@@ -232,7 +246,7 @@ export default function QuickAdd({ state, defaultDate, onQuickAdd }) {
         </div>
 
         <div className="field quick-add-submit-field">
-          {/* Spacer label keeps the button aligned with the inputs. */}
+          {/* Spacer label keeps the buttons aligned with the inputs. */}
           <span className="field-label" aria-hidden="true">&nbsp;</span>
           <button
             type="submit"
@@ -241,6 +255,14 @@ export default function QuickAdd({ state, defaultDate, onQuickAdd }) {
             title={noTarget ? (kind === "saving" ? "Add a savings account from the Savings tab first" : "Add a category from the Budgets tab first") : undefined}
           >
             Add entry
+          </button>
+          <button
+            type="button"
+            className="button"
+            onClick={handleMakeRepeating}
+            aria-label="Make it repeating: open the full form with repeating turned on, carrying over what you typed here"
+          >
+            Make it repeating
           </button>
         </div>
       </form>

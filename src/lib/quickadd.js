@@ -113,3 +113,25 @@ export function commitInlineAmount(draftText, kind) {
   if (kind === "saving") return parsed === 0 ? null : parsed;
   return parsed > 0 ? parsed : null;
 }
+
+/**
+ * Build the prefill for opening the full dialog from the quick-add row
+ * with repeating turned on ("Make it repeating"). Everything the user
+ * already typed carries over: kind, amount text, date, category/account
+ * and note. Unlike quickAddPayload this never rejects a draft — an
+ * empty or unparseable amount simply arrives blank/invalid in the
+ * dialog, which validates on submit. An invalid date becomes null so
+ * the dialog falls back to its default date. The dialog decides the
+ * repeating frequency (its own default); this only asks for repeating.
+ */
+export function repeatingDraft({ amountText, kind, date, categoryId, accountId, note }) {
+  return {
+    kind,
+    amountText: String(amountText ?? ""),
+    date: isValidISO(date) ? date : null,
+    categoryId: categoryId || null,
+    accountId: accountId || null,
+    note: String(note || "").trim(),
+    makeRecurring: true,
+  };
+}

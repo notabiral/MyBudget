@@ -11,6 +11,10 @@ import { Modal } from "./ui.jsx";
  *
  * Props:
  * - open, initial (transaction or null), defaultDate, state
+ * - prefill (optional, new entries only): { kind, amountText, date|null,
+ *   categoryId, accountId, note, makeRecurring } from the quick-add row's
+ *   "Make it repeating" shortcut. Applied instead of the blank form when
+ *   the dialog opens for a new entry; ignored when editing.
  * - onClose(), onSave(payload), onDelete(id) — onSave receives:
  *   { id?, kind, date, amountMinor, categoryId, accountId, note,
  *     makeRecurring, frequency, endDate }
@@ -20,6 +24,7 @@ import { Modal } from "./ui.jsx";
 export default function EntryDialog({
   open,
   initial,
+  prefill,
   defaultDate,
   state,
   onClose,
@@ -74,6 +79,21 @@ export default function EntryDialog({
       setMakeRecurring(false);
       setFrequency("monthly");
       setEndDate("");
+    } else if (prefill) {
+      // "Make it repeating" from quick-add: carry the typed draft over
+      // with repeating pre-ticked. An invalid draft date arrives as
+      // null and falls back to the default date; the amount arrives as
+      // raw text and is validated on submit, like a typed value.
+      setKind(prefill.kind);
+      setDate(prefill.date && isValidISO(prefill.date) ? prefill.date : defaultDate || todayISO());
+      setAmount(prefill.amountText || "");
+      setDirection("in");
+      setCategoryId(prefill.categoryId || "");
+      setAccountId(prefill.accountId || "");
+      setNote(prefill.note || "");
+      setMakeRecurring(prefill.makeRecurring === true);
+      setFrequency(prefill.frequency || "monthly");
+      setEndDate("");
     } else {
       setKind("expense");
       setDate(defaultDate || todayISO());
@@ -89,18 +109,21 @@ export default function EntryDialog({
     setNewCategoryName("");
     setNewAccountName("");
     setErrors({});
-  }, [open, initial, defaultDate]);
+  }, [open, initial, prefill, defaultDate]);
 
-  // Default the category/account pickers when the kind changes.
+  // Default the category/account pickers when the kind changes. Skipped
+  // for a prefilled open: the prefill carries an explicit selection, and
+  // this effect would otherwise overwrite it with the first option on
+  // the same commit the reset effect runs.
   useEffect(() => {
-    if (!open || editing) return;
+    if (!open || editing || prefill) return;
     if (kind !== "saving" && categories.length > 0 && !categoryId) {
       setCategoryId(categories[0].id);
     }
     if (kind === "saving" && accounts.length > 0 && !accountId) {
       setAccountId(accounts[0].id);
     }
-  }, [open, editing, kind, categories, accounts, categoryId, accountId]);
+  }, [open, editing, prefill, kind, categories, accounts, categoryId, accountId]);
 
   const creatingCategory = categoryId === "__new__";
   const creatingAccount = accountId === "__new__";

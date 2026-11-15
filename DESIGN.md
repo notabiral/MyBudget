@@ -153,6 +153,8 @@ Shadows: `--shadow-1` (resting panels), `--shadow-2` (dialogs, toasts).
   when viewing the current period, else the period's first day, and
   follows period navigation. Savings entries here are deposits only;
   withdrawals, repeating entries and full edits stay in the dialog.
+  The row is labelled one-off only, and "Make it repeating" opens the
+  dialog with repeating pre-ticked and the typed draft carried over.
   Existing rows edit their amount inline, following the Budgets
   blur-commit pattern exactly: tap the amount, edit, blur or Enter
   commits, Escape cancels, an invalid draft reverts visibly to the saved

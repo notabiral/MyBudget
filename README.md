@@ -21,7 +21,9 @@ browser and the data never leaves your device.
   (weekly or monthly rules that generate future entries automatically).
   A quick-add row at the top takes amount, type, category, note and
   date in one line and clears for the next entry; amounts on existing
-  rows edit inline with a tap.
+  rows edit inline with a tap. Quick-add entries are one-off only, and
+  a "Make it repeating" button opens the full form with repeating
+  turned on and the typed values carried over.
 - **Budgets** — a budget per spending category, with spent/left
   indicators and over-budget flags. Weekly and monthly budgets are
   separate amounts: week mode edits weekly amounts, month mode edits

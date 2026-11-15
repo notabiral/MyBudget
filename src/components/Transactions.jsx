@@ -25,6 +25,7 @@ export default function Transactions({
   defaultDate,
   onAddEntry,
   onQuickAdd,
+  onMakeRepeating,
   onEditTxn,
   onUpdateTxnAmount,
   onDeleteTxn,
@@ -93,7 +94,7 @@ export default function Transactions({
         </button>
       </div>
 
-      <QuickAdd state={state} defaultDate={defaultDate} onQuickAdd={onQuickAdd} />
+      <QuickAdd state={state} defaultDate={defaultDate} onQuickAdd={onQuickAdd} onMakeRepeating={onMakeRepeating} />
 
       {state.rules.length > 0 && (
         <section className="panel mt-24" aria-labelledby="repeating-title">

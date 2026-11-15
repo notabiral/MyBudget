@@ -6,6 +6,7 @@ import {
   defaultQuickAddCategory,
   lastUsedTargetId,
   quickAddPayload,
+  repeatingDraft,
 } from "./quickadd.js";
 
 describe("quickAddPayload", () => {
@@ -203,5 +204,55 @@ describe("commitInlineAmount", () => {
     expect(commitInlineAmount("-20", "saving")).toBe(-2000);
     expect(commitInlineAmount("20", "saving")).toBe(2000);
     expect(commitInlineAmount("0", "saving")).toBeNull();
+  });
+});
+
+describe("repeatingDraft", () => {
+  it("carries the whole quick-add draft over and asks for repeating", () => {
+    expect(
+      repeatingDraft({
+        amountText: "12.50",
+        kind: "expense",
+        date: "2026-11-15",
+        categoryId: "cat_1",
+        accountId: null,
+        note: "  Weekly shop ",
+      })
+    ).toEqual({
+      kind: "expense",
+      amountText: "12.50",
+      date: "2026-11-15",
+      categoryId: "cat_1",
+      accountId: null,
+      note: "Weekly shop",
+      makeRecurring: true,
+    });
+  });
+
+  it("carries a saving draft with its account and no category", () => {
+    const draft = repeatingDraft({
+      amountText: "100",
+      kind: "saving",
+      date: "2026-11-15",
+      categoryId: null,
+      accountId: "acct_1",
+      note: "",
+    });
+    expect(draft.accountId).toBe("acct_1");
+    expect(draft.categoryId).toBeNull();
+    expect(draft.makeRecurring).toBe(true);
+  });
+
+  it("keeps raw amount text so the dialog validates it on submit", () => {
+    expect(repeatingDraft({ amountText: "abc", kind: "income", date: "2026-11-15" }).amountText).toBe("abc");
+    expect(repeatingDraft({ kind: "income", date: "2026-11-15" }).amountText).toBe("");
+  });
+
+  it("turns an invalid date into null so the dialog falls back to its default date", () => {
+    expect(
+      repeatingDraft({ amountText: "5", kind: "expense", date: "not-a-date" }).date
+    ).toBeNull();
+    expect(repeatingDraft({ amountText: "5", kind: "expense", date: "" }).date).toBeNull();
+    expect(repeatingDraft({ amountText: "5", kind: "expense" }).date).toBeNull();
   });
 });

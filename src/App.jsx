@@ -168,6 +168,12 @@ export default function App() {
     setDialog({ mode: "add", txn: null, defaultDate: defaultDateForPeriod() });
   }
 
+  // "Make it repeating" from the quick-add row: the full dialog opens
+  // with repeating pre-ticked and the typed draft carried over.
+  function openRepeatingEntry(draft) {
+    setDialog({ mode: "add", txn: null, defaultDate: defaultDateForPeriod(), prefill: draft });
+  }
+
   function openEditEntry(txn) {
     setDialog({ mode: "edit", txn, defaultDate: txn.date });
   }
@@ -792,6 +798,7 @@ export default function App() {
             defaultDate={defaultDate}
             onAddEntry={openAddEntry}
             onQuickAdd={saveEntry}
+            onMakeRepeating={openRepeatingEntry}
             onEditTxn={openEditEntry}
             onUpdateTxnAmount={updateTxnAmount}
             onDeleteTxn={deleteEntry}
@@ -853,6 +860,7 @@ export default function App() {
       <EntryDialog
         open={dialog !== null}
         initial={dialog?.txn || null}
+        prefill={dialog?.prefill || null}
         defaultDate={dialog?.defaultDate || defaultDate}
         state={state}
         onClose={() => setDialog(null)}
