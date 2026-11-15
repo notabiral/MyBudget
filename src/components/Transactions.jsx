@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatDate, monthKeyOf, monthLabel } from "../lib/dates.js";
+import { formatDate, monthLabel, weekLabel } from "../lib/dates.js";
 import { formatMoney } from "../lib/money.js";
 import { filterTransactions } from "../lib/stats.js";
 import { describeRule } from "../lib/recurring.js";
@@ -17,6 +17,8 @@ function groupByDate(txns) {
 
 export default function Transactions({
   state,
+  periodMode,
+  weekKey,
   monthKey,
   onAddEntry,
   onEditTxn,
@@ -25,6 +27,8 @@ export default function Transactions({
   onDeleteRule,
 }) {
   const currency = state.currency;
+  const isWeek = periodMode === "week";
+  const periodLabel = isWeek ? weekLabel(weekKey) : monthLabel(monthKey);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("all");
   const [categoryId, setCategoryId] = useState("all");
@@ -39,9 +43,10 @@ export default function Transactions({
         query,
         kind,
         categoryId,
-        monthKey: showAll ? null : monthKey,
+        monthKey: showAll || isWeek ? null : monthKey,
+        weekKey: showAll || !isWeek ? null : weekKey,
       }),
-    [state, query, kind, categoryId, monthKey, showAll]
+    [state, query, kind, categoryId, monthKey, weekKey, isWeek, showAll]
   );
   const groups = useMemo(() => groupByDate(filtered), [filtered]);
 
@@ -56,7 +61,9 @@ export default function Transactions({
           <p className="view-sub">
             {showAll
               ? "Every entry, newest first."
-              : `Entries for ${monthLabel(monthKey)}. Switch months in the header to time-travel.`}
+              : isWeek
+                ? `Entries for the week of ${periodLabel}. Switch weeks in the header to time-travel.`
+                : `Entries for ${periodLabel}. Switch months in the header to time-travel.`}
           </p>
         </div>
         <button type="button" className="button button-primary" onClick={onAddEntry}>
@@ -177,7 +184,7 @@ export default function Transactions({
             checked={showAll}
             onChange={(e) => setShowAll(e.target.checked)}
           />
-          All months
+          {isWeek ? "All weeks" : "All months"}
         </label>
       </div>
 

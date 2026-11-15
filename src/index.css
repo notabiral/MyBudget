@@ -551,6 +551,22 @@ svg {
   gap: 4px;
 }
 
+/* Week/Month toggle + period stepper, one unit in the header. The
+   fieldset carries the accessible group name; the segmented control
+   inside reuses the dialog radio pattern. */
+.period-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.period-toggle {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
 .month-nav-current {
   min-width: 0;
   padding: 8px 10px;
@@ -1194,6 +1210,15 @@ svg {
   font-weight: 600;
 }
 
+/* A monthly figure derived from the weekly budget is labelled, never
+   silent: the note names the weekly amount it came from. */
+.budget-derived-note {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .budget-row-actions {
   display: flex;
   gap: 2px;
@@ -1640,9 +1665,25 @@ svg {
   }
 
   .month-nav {
-    order: 3;
     width: 100%;
     justify-content: space-between;
+  }
+
+  /* The toggle takes its own full-width row above the stepper, so the
+     week range label never squeezes against it at 390px. */
+  .period-nav {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .period-toggle {
+    flex: 1 1 100%;
+  }
+
+  .period-toggle .segmented {
+    width: 100%;
   }
 
   .header-add-button {

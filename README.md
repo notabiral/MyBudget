@@ -8,16 +8,23 @@ browser and the data never leaves your device.
 
 ## What it does
 
-- **Overview** — the month's left-to-spend figure up front (money brought
-  forward plus this month's income, minus spending and savings set aside),
-  with money in, money out, saved, brought forward and spent %, a
-  plain-language verdict, spending by category, a six-month trend chart,
-  recent activity and a savings snapshot.
+- **Overview** — the period's left-to-spend figure up front (money
+  brought forward plus the period's income, minus spending and savings
+  set aside), with money in, money out, saved, brought forward and
+  spent %, a plain-language verdict, spending by category, a trend chart
+  (six months, or eight weeks in week mode), recent activity and a
+  savings snapshot. A Week/Month toggle in the header switches the whole
+  app between Monday–Sunday weeks and calendar months; the choice is
+  remembered, and Month is the default.
 - **Entries** — income, expenses and savings transfers, with search, type
-  and category filters, month/all-months views, and repeating entries
+  and category filters, period/all-time views, and repeating entries
   (weekly or monthly rules that generate future entries automatically).
-- **Budgets** — a monthly budget per spending category, with spent/left
-  indicators and over-budget flags. Rename, archive and delete categories;
+- **Budgets** — a budget per spending category, with spent/left
+  indicators and over-budget flags. Weekly and monthly budgets are
+  separate amounts: week mode edits weekly amounts, month mode edits
+  monthly amounts, and a category with only a weekly budget shows a
+  monthly figure worked out from it (weekly × days in month / 7),
+  labelled as derived. Rename, archive and delete categories;
   income categories live here too.
 - **Savings** — savings accounts with optional targets and progress bars.
   Put money in, take money out, watch the bar fill.
@@ -74,7 +81,7 @@ you pick the year on import. Exact duplicates are skipped.
 npm install
 npm run dev      # dev server at http://localhost:5173
 npm run build    # production build in the dist/ folder
-npm test         # test suite (44 tests)
+npm test         # test suite (106 tests)
 ```
 
 ## Deploying

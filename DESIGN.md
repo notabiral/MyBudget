@@ -94,11 +94,12 @@ Shadows: `--shadow-1` (resting panels), `--shadow-2` (dialogs, toasts).
 - One column, max width 1200px, page padding
   `clamp(16px, 4vw, 32px)` widened by `env(safe-area-inset-*)` on notched
   devices.
-- Header: wordmark left, month navigator centre-right, Add entry right.
-  Below it, sticky view tabs (Overview / Entries / Budgets / Savings /
-  Your data) with a blur backdrop.
+- Header: wordmark left, period toggle (Week / Month) plus period
+  navigator centre-right, Add entry right. Below it, sticky view tabs
+  (Overview / Entries / Budgets / Savings / Your data) with a blur
+  backdrop.
 - Overview: full-bleed hero band (the Big Number, verdict line, five
-  facts, month-elapsed bar), then a 12-column dashboard grid (7/5 splits).
+  facts, period-elapsed bar), then a 12-column dashboard grid (7/5 splits).
 - Breakpoints: ≤900px (dashboard stacks, budget rows reflow), ≤640px
   (dialog actions stretch, transaction rows stack). No horizontal
   overflow at 390px; `overflow-x: clip` on the body is a guard, not a
@@ -112,31 +113,49 @@ Shadows: `--shadow-1` (resting panels), `--shadow-2` (dialogs, toasts).
   strong border), dark, outline, danger, ghost, small. 48px inputs,
   44px+ tap targets, 120ms hover/active transitions. Every button has a
   visible hover state.
-- **Hero**: near-black band, mono eyebrow (the month + "Left to spend"),
+- **Hero**: near-black band, mono eyebrow (the period + "Left to spend"),
   the Big Number in Space Grotesk 700, a one-line verdict in plain
   language, five facts in a definition list (Money in / Money out /
-  Saved / Brought forward / Spent), and a month-elapsed bar in the current month.
+  Saved / Brought forward / Spent), and a period-elapsed bar in the current period.
   A negative figure shows a real minus sign, never colour alone.
   The Big Number is left-to-spend: money brought forward (the running
-  balance through the previous month) + this month's income − spending −
-  savings set aside. It is identical to the running balance through the
-  month. The month-only income-minus-expenses figure ("Extra") is kept
-  for the legacy year-grid CSV only, never shown as the hero.
+  balance through the day before the period starts) + the period's income
+  − spending − savings set aside. It is identical to the running balance
+  through the period end. The period-only income-minus-expenses figure
+  ("Extra") is kept for the legacy year-grid CSV only, never shown as the hero.
+- **Periods**: the header toggle switches the whole app between Month and
+  Week views; the choice persists in settings (`prefs.periodMode`) and
+  Month is the default, so monthly-paid users see no change. Weeks are
+  Monday–Sunday calendar weeks numbered per ISO 8601 ("2026-W46"), with
+  week 1 the week containing the first Thursday — a week key's year can
+  differ from the calendar year of its dates. Switching modes keeps the
+  user's place: the newly selected period is the one containing the day
+  the previous period pointed at. Month summaries already aggregate all
+  dated entries, so the monthly overview works unchanged for weekly-paid
+  users; the trend chart shows the last 6 months in month mode and the
+  last 8 weeks in week mode.
 - **Bars**: 8px tracks in `--surface-2`, fill via `transform: scaleX()`
   (compositor-friendly, never a width animation), red past 100%. Every
   bar has an accessible name with the real figures; the bar is never the
   only signal.
-- **Trend chart**: hand-rolled SVG, paired bars per month (money in /
+- **Trend chart**: hand-rolled SVG, paired bars per period (money in /
   money out), with a visually-hidden data table carrying the same
   figures. Axis labels sit in a left gutter, right-aligned clear of the
   plot, on a nice-number scale (1/2/2.5/5 × 10^k, floored at £1) so no
   label ever hides behind a bar or repeats on a quiet window. No chart library.
-- **Budgets**: one row per spending category with a monthly-budget input
-  that commits on blur. When no category has a budget yet, a tinted hint
-  strip explains that budgets repeat monthly and offers a button that
-  moves focus to the first budget input. Budgets are never invented or
-  auto-assigned; the header shows "No budgets set yet" instead of a
-  £0-of-£0 line until the first budget exists.
+- **Budgets**: one row per spending category with a budget input
+  that commits on blur. Weekly and monthly budgets are separate amounts
+  (`weeklyBudgetMinor`, `monthlyBudgetMinor`): week mode edits weekly
+  amounts, month mode edits monthly amounts. **Collapse rule**: in month
+  mode, a category with an explicit monthly amount uses it; a category
+  with only a weekly amount shows a derived monthly figure — weekly ×
+  days in month / 7, rounded to the nearest penny — labelled as derived
+  from the weekly amount, with the input left for the explicit monthly
+  amount. A derived figure never overwrites an explicit one. When no
+  category has a budget yet, a tinted hint strip explains that budgets
+  repeat and offers a button that moves focus to the first budget input.
+  Budgets are never invented or auto-assigned; the header shows "No
+  budgets set yet" instead of a £0-of-£0 line until the first budget exists.
 - **Panels**: white surfaces, 1px `--line` border, 20px radius, no
   cards-within-cards.
 - **Dialogs**: native `<dialog>` (Escape closes, browser top-layer focus
@@ -193,7 +212,12 @@ collapse to 0.01ms. No entrances, no scroll effects, no loops.
 
 - Storage key: `mybudget.v1` in `localStorage`. Money is integer minor
   units (pence) everywhere in state; floats only at the parse/format
-  boundary. See `src/lib/model.js` for the schema.
+  boundary. See `src/lib/model.js` for the schema. Categories carry both
+  `monthlyBudgetMinor` and `weeklyBudgetMinor` (either may be null);
+  saved states from before weekly budgets normalise the missing field to
+  null with no migration. The period-mode preference lives in
+  `prefs.periodMode` ("month" default) and persists like the currency
+  setting.
 - **Migration**: on first load, if no v1 state exists and the legacy
   `budget_final` key holds data, each nonzero legacy figure becomes one
   dated entry (1st of the month, noted "Imported from the previous
@@ -286,5 +310,6 @@ site must keep serving at `https://notabiral.github.io/MyBudget/`.
 
 Vite 6 + React 19 + Vitest. No router, no chart library, no UI
 framework — hand-rolled SVG charts, native `<dialog>` modals, one
-hand-written stylesheet. Tests cover the core maths, migration,
-recurring rules and CSV handling (`src/lib/*.test.js`, 59 tests).
+hand-written stylesheet. Tests cover the core maths, week/month
+periods, the weekly-budget collapse rule, migration, recurring rules
+and CSV handling (`src/lib/*.test.js`, 106 tests).

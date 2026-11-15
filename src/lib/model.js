@@ -53,6 +53,7 @@ export function blankCategory(name, kind, index = 0, extra = {}) {
     kind, // 'expense' | 'income'
     color: colorForIndex(index),
     monthlyBudgetMinor: null,
+    weeklyBudgetMinor: null,
     archived: false,
     ...extra,
   };
@@ -93,7 +94,7 @@ export function blankState({ memberName = "Me", currency = "GBP" } = {}) {
     accounts: [],
     transactions: [],
     rules: [],
-    prefs: { demo: false },
+    prefs: { demo: false, periodMode: "month" },
     meta: { createdAt: now, migratedFrom: null, migratedAt: null },
   };
 }
@@ -135,6 +136,12 @@ export function normalizeState(input) {
         monthlyBudgetMinor:
           Number.isInteger(c.monthlyBudgetMinor) && c.monthlyBudgetMinor >= 0
             ? c.monthlyBudgetMinor
+            : null,
+        // Added later than monthly budgets; old saved states simply lack
+        // it and normalise to null — no migration of user data.
+        weeklyBudgetMinor:
+          Number.isInteger(c.weeklyBudgetMinor) && c.weeklyBudgetMinor >= 0
+            ? c.weeklyBudgetMinor
             : null,
         archived: c.archived === true,
       }));
@@ -235,7 +242,11 @@ export function normalizeState(input) {
   }
 
   if (input.prefs && typeof input.prefs === "object") {
-    out.prefs = { demo: input.prefs.demo === true };
+    out.prefs = {
+      demo: input.prefs.demo === true,
+      // Month is the default: monthly-paid users see no change.
+      periodMode: input.prefs.periodMode === "week" ? "week" : "month",
+    };
   }
   if (input.meta && typeof input.meta === "object") {
     out.meta = {

@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
-import { monthLabel } from "../lib/dates.js";
+import { monthLabel, weekLabel } from "../lib/dates.js";
 import { currencyOf, formatMoney, parseMoney } from "../lib/money.js";
 import { categorySpend } from "../lib/stats.js";
 import { Bar, CatDot, EmptyState } from "./ui.jsx";
 
 export default function Budgets({
   state,
+  periodMode,
+  weekKey,
   monthKey,
   onSetBudget,
   onRenameCategory,
@@ -15,7 +17,16 @@ export default function Budgets({
 }) {
   const currency = state.currency;
   const symbol = currencyOf(currency).symbol;
-  const rows = categorySpend(state, monthKey);
+  const isWeek = periodMode === "week";
+  const periodKey = isWeek ? weekKey : monthKey;
+  const periodLabel = isWeek ? weekLabel(weekKey) : monthLabel(monthKey);
+  // Weekly and monthly budgets are separate amounts. In week mode the
+  // inputs edit weekly amounts; in month mode they edit monthly amounts.
+  // A category with only a weekly budget still shows an effective monthly
+  // figure (weekly × days in month / 7), labelled as derived.
+  const budgetField = isWeek ? "weeklyBudgetMinor" : "monthlyBudgetMinor";
+  const budgetNoun = isWeek ? "Weekly" : "Monthly";
+  const rows = categorySpend(state, periodKey, { mode: periodMode });
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [newName, setNewName] = useState("");
@@ -28,17 +39,19 @@ export default function Budgets({
   const listRef = useRef(null);
 
   function focusFirstBudgetInput() {
-    listRef.current?.querySelector('input[name="monthly-budget"]')?.focus();
+    listRef.current
+      ?.querySelector(`input[name="${isWeek ? "weekly-budget" : "monthly-budget"}"]`)
+      ?.focus();
   }
 
   function commitBudget(categoryId, raw) {
     const text = String(raw ?? "").trim();
     if (text === "") {
-      onSetBudget(categoryId, null);
+      onSetBudget(categoryId, budgetField, null);
       return;
     }
     const parsed = parseMoney(text);
-    if (parsed !== null && parsed >= 0) onSetBudget(categoryId, parsed);
+    if (parsed !== null && parsed >= 0) onSetBudget(categoryId, budgetField, parsed);
   }
 
   function commitRename(category) {
@@ -65,8 +78,18 @@ export default function Budgets({
         <div>
           <h1 className="view-title">Budgets</h1>
           <p className="view-sub">
-            A monthly budget per category, against what {monthLabel(monthKey)} actually cost.
-            Budgets repeat every month until you change them.
+            {isWeek ? (
+              <>
+                A weekly budget per category, against what the week of {periodLabel} actually
+                cost. Budgets repeat every week until you change them.
+              </>
+            ) : (
+              <>
+                A monthly budget per category, against what {periodLabel} actually cost.
+                Budgets repeat every month until you change them. A category with only a
+                weekly budget shows a monthly figure worked out from it.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -84,9 +107,9 @@ export default function Budgets({
         {rows.length > 0 && !hasAnyBudget && (
           <div className="budgets-hint">
             <p>
-              Budgets repeat every month until you change them. Your spending is
-              already tracked below — set a monthly amount per category to see
-              how each one is doing.
+              Budgets repeat every {isWeek ? "week" : "month"} until you change them. Your
+              spending is already tracked below — set a {isWeek ? "weekly" : "monthly"} amount
+              per category to see how each one is doing.
             </p>
             <button type="button" className="button" onClick={focusFirstBudgetInput}>
               Set your first budget
@@ -104,12 +127,13 @@ export default function Budgets({
               const category = r.category;
               if (!category) return null;
               const draft = drafts[category.id];
+              const explicit = category[budgetField] ?? null;
               const shown =
                 draft !== undefined
                   ? draft
-                  : category.monthlyBudgetMinor === null
+                  : explicit === null
                     ? ""
-                    : String(category.monthlyBudgetMinor / 100);
+                    : String(explicit / 100);
               const isEditing = editingId === category.id;
               return (
                 <li className="budget-row" key={category.id}>
@@ -139,10 +163,10 @@ export default function Budgets({
                     <span className="budget-currency" aria-hidden="true">{symbol}</span>
                     <input
                       className="input"
-                      name="monthly-budget"
+                      name={isWeek ? "weekly-budget" : "monthly-budget"}
                       inputMode="decimal"
                       autoComplete="off"
-                      placeholder="No budget"
+                      placeholder={r.budgetDerived ? "No monthly budget" : "No budget"}
                       value={shown}
                       onChange={(e) =>
                         setDrafts((d) => ({ ...d, [category.id]: e.target.value }))
@@ -158,7 +182,7 @@ export default function Budgets({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") e.currentTarget.blur();
                       }}
-                      aria-label={`Monthly budget for ${category.name}`}
+                      aria-label={`${budgetNoun} budget for ${category.name}`}
                     />
                   </div>
                   <div className="budget-row-figures">
@@ -176,6 +200,12 @@ export default function Budgets({
                         <span className="muted">no budget</span>
                       )}
                     </div>
+                    {r.budgetDerived && category.weeklyBudgetMinor != null && (
+                      <p className="budget-derived-note">
+                        Monthly figure from {formatMoney(category.weeklyBudgetMinor, currency)} a
+                        week — set a monthly amount above to override it.
+                      </p>
+                    )}
                     {r.budget !== null && (
                       <Bar
                         ratio={r.ratio}
