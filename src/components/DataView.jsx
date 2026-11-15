@@ -4,6 +4,15 @@ import { CURRENCIES } from "../lib/money.js";
 import { yearRange } from "../lib/stats.js";
 import { ConfirmDialog } from "./ui.jsx";
 
+// Read-only Google Sheet template (anyone with the link can view it).
+// People make their own copy, fill it in, download it as CSV and import
+// the file here. Three tabs: "How to use", "Monthly" and "Weekly".
+const TEMPLATE_URL =
+  "https://docs.google.com/spreadsheets/d/1sHUaxe8KgCGft1APzje5LoIbJnOE0UFtHPNAQ7w5xCg/edit?usp=sharing";
+
+// How many skipped rows to list after an import before summarising the rest.
+const MAX_SHOWN_SKIPPED = 10;
+
 function readFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -106,36 +115,60 @@ export default function DataView({
         </section>
 
         <section className="panel" aria-labelledby="csv-title">
-          <h2 id="csv-title">Spreadsheets (CSV)</h2>
+          <h2 id="csv-title">Spreadsheets</h2>
           <p>
-            The year grid keeps the original app&rsquo;s shape — categories down the side, months
-            across the top, totals and carried savings below — so old exports and new ones open
-            the same way. The ledger export lists every entry, one per row.
+            If your budget lives in a spreadsheet, start from the template below. It is
+            already set up the way MyBudget reads it, so you never have to guess the
+            layout.
           </p>
-          <div className="data-actions">
-            <div className="field">
-              <label htmlFor="export-year">Year</label>
-              <select
-                id="export-year"
-                className="select"
-                name="export-year"
-                value={exportYear}
-                onChange={(e) => setExportYear(Number(e.target.value))}
-              >
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button type="button" className="button" onClick={() => onExportGrid(exportYear)}>
-              Year grid CSV
-            </button>
-            <button type="button" className="button" onClick={() => onExportLedger(exportYear)}>
-              Ledger CSV
-            </button>
-          </div>
+          <ol className="import-steps">
+            <li>
+              Open the{" "}
+              <a href={TEMPLATE_URL} target="_blank" rel="noopener">
+                MyBudget import template
+              </a>{" "}
+              (opens in a new tab).
+            </li>
+            <li>Make your own copy: in Google Sheets, choose File, then Make a copy.</li>
+            <li>
+              Pick a tab: Monthly if you budget by month, Weekly if you budget by week.
+            </li>
+            <li>Fill it in with your own figures.</li>
+            <li>
+              Download your copy: choose File, then Download, then &ldquo;Comma-separated
+              values (.csv)&rdquo;. CSV is just the file type MyBudget can read.
+            </li>
+            <li>
+              Come back here, choose Import CSV below, and pick the file you just
+              downloaded.
+            </li>
+          </ol>
+          <details className="format-spec">
+            <summary>What the file needs to look like</summary>
+            <p>
+              <strong>Monthly file</strong> (from the Monthly tab): the first column is
+              the category, then one column per month, Jan to Dec — one row per
+              category. The row called Salary counts as money in; every other row
+              counts as spending. The year is the one you pick below.
+            </p>
+            <p>
+              <strong>Weekly file</strong> (from the Weekly tab): weeks down the side,
+              categories across the top. The first column is the week starting date, a
+              Monday, and every other column is a category or a savings account — one
+              row per week, filled in with what each week cost. The Salary column
+              counts as money in; the ISA, Revolut and Monzo 1P columns count as
+              savings; every other column counts as spending. Dates as 2026-11-15 or
+              15/11/2026. Amounts are plain numbers with no £ signs or commas, for
+              example 64.20. Saving amounts can be negative for money taken out.
+            </p>
+            <p>
+              <strong>Ledger file</strong> (from a ledger export): one row per entry,
+              with these columns in order: Date, Type, Category, Account, Note,
+              Amount. Dates as 2026-11-15 or 15/11/2026. Type is Income, Expense or
+              Saving. Amounts are plain numbers with no £ signs or commas, for example
+              64.20. Saving amounts can be negative for money taken out.
+            </p>
+          </details>
           <div className="data-actions">
             <div className="field">
               <label htmlFor="import-year">Year for grid imports</label>
@@ -171,8 +204,8 @@ export default function DataView({
             />
           </div>
           <p className="mt-12 text-sm muted">
-            Grid files have no year column, so imported months land in the year you pick.
-            Exact duplicates are skipped.
+            Monthly grid files have no year column, so imported months land in the year
+            you pick. Exact duplicates are skipped.
           </p>
           {importResult && (
             <p
@@ -182,6 +215,57 @@ export default function DataView({
               {importResult.message}
             </p>
           )}
+          {importResult && importResult.skippedRows && importResult.skippedRows.length > 0 && (
+            <div className="skipped-rows">
+              <p>
+                <strong>Rows that were skipped</strong> — fix these in your copy of the
+                template and import again:
+              </p>
+              <ul>
+                {importResult.skippedRows.slice(0, MAX_SHOWN_SKIPPED).map((s, i) => (
+                  <li key={`${s.row}-${i}`}>
+                    Row {s.row} — {s.reason}
+                  </li>
+                ))}
+              </ul>
+              {importResult.skippedRows.length > MAX_SHOWN_SKIPPED && (
+                <p className="mt-8 text-sm muted">
+                  …and {importResult.skippedRows.length - MAX_SHOWN_SKIPPED} more{" "}
+                  {importResult.skippedRows.length - MAX_SHOWN_SKIPPED === 1 ? "row" : "rows"}{" "}
+                  skipped.
+                </p>
+              )}
+            </div>
+          )}
+          <p className="mt-12 text-sm muted">
+            To take your data out again, download either shape below: the year grid keeps
+            categories down the side and months across the top, and the ledger lists
+            every entry, one per row.
+          </p>
+          <div className="data-actions">
+            <div className="field">
+              <label htmlFor="export-year">Year</label>
+              <select
+                id="export-year"
+                className="select"
+                name="export-year"
+                value={exportYear}
+                onChange={(e) => setExportYear(Number(e.target.value))}
+              >
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button type="button" className="button" onClick={() => onExportGrid(exportYear)}>
+              Year grid CSV
+            </button>
+            <button type="button" className="button" onClick={() => onExportLedger(exportYear)}>
+              Ledger CSV
+            </button>
+          </div>
         </section>
 
         <section className="panel" aria-labelledby="demo-title">

@@ -430,12 +430,16 @@ export default function App() {
   }
 
   function importCSV(text, year) {
-    const memberId = stateRef.current.members[0].id;
-    const result = parseImportCSV(text, { year, memberId });
+    const prev = stateRef.current;
+    const memberId = prev.members[0].id;
+    const result = parseImportCSV(text, {
+      year,
+      memberId,
+      accountNames: prev.accounts.map((a) => a.name),
+    });
     if (result.format === "unknown" || result.format === "empty") {
       return { ok: false, message: result.errors[0] || "Could not read the file." };
     }
-    const prev = stateRef.current;
     const categoryByKey = new Map(
       prev.categories.map((c) => [`${c.kind}:${c.name.toLowerCase()}`, c])
     );
@@ -494,6 +498,7 @@ export default function App() {
       return {
         ok: true,
         message: `Nothing new to import — ${duplicates} ${duplicates === 1 ? "row was" : "rows were"} already here and ${result.skipped} ${result.skipped === 1 ? "row was" : "rows were"} skipped.`,
+        skippedRows: result.skippedRows,
       };
     }
     commit(
@@ -508,6 +513,7 @@ export default function App() {
     return {
       ok: true,
       message: `Imported ${added} ${added === 1 ? "entry" : "entries"}${newCategories.length ? `, created ${newCategories.length} ${newCategories.length === 1 ? "category" : "categories"}` : ""}${newAccounts.length ? ` and ${newAccounts.length} ${newAccounts.length === 1 ? "account" : "accounts"}` : ""}. ${duplicates} duplicate ${duplicates === 1 ? "row" : "rows"} skipped, ${result.skipped} invalid ${result.skipped === 1 ? "row" : "rows"} skipped.`,
+      skippedRows: result.skippedRows,
     };
   }
 

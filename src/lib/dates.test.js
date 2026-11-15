@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   currentWeekKey,
+  parseLooseDate,
   shiftWeek,
   weekKeyOf,
   weekKeyParts,
@@ -10,6 +11,31 @@ import {
   weekRange,
   weekShortLabel,
 } from "./dates.js";
+
+describe("parseLooseDate", () => {
+  it("passes ISO dates through unchanged", () => {
+    expect(parseLooseDate("2026-11-15")).toBe("2026-11-15");
+    expect(parseLooseDate("2026-02-29")).toBe(null); // 2026 is not a leap year
+  });
+
+  it("accepts UK day/month/year dates, including single digits", () => {
+    expect(parseLooseDate("15/11/2026")).toBe("2026-11-15");
+    expect(parseLooseDate("5/1/2026")).toBe("2026-01-05");
+    expect(parseLooseDate("29/02/2028")).toBe("2028-02-29");
+  });
+
+  it("rejects impossible or wrongly shaped dates", () => {
+    expect(parseLooseDate("31/02/2026")).toBe(null);
+    expect(parseLooseDate("32/01/2026")).toBe(null);
+    expect(parseLooseDate("15/13/2026")).toBe(null);
+    expect(parseLooseDate("29/02/2026")).toBe(null);
+    expect(parseLooseDate("2026/11/15")).toBe(null);
+    expect(parseLooseDate("15-11-2026")).toBe(null);
+    expect(parseLooseDate("not-a-date")).toBe(null);
+    expect(parseLooseDate("")).toBe(null);
+    expect(parseLooseDate(null)).toBe(null);
+  });
+});
 
 describe("weekKeyOf", () => {
   it("groups Monday to Sunday under one key", () => {

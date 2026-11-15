@@ -50,6 +50,25 @@ export function isValidISO(iso) {
   return parseISO(iso) !== null;
 }
 
+/**
+ * Accept an ISO date ("2026-11-15") or a UK-style day/month/year date
+ * ("15/11/2026", single digits allowed) and return the ISO form, or
+ * null when the text is not a real date in either shape. Only used at
+ * the CSV import boundary, where spreadsheet users type UK dates.
+ */
+export function parseLooseDate(text) {
+  const raw = String(text || "").trim();
+  if (isValidISO(raw)) return raw;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const year = Number(m[3]);
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > daysInMonth(year, month)) return null;
+  return toISO(year, month, day);
+}
+
 export function daysInMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }

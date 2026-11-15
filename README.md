@@ -34,9 +34,10 @@ browser and the data never leaves your device.
 - **Savings** — savings accounts with optional targets and progress bars.
   Put money in, take money out, watch the bar fill.
 - **Your data** — full JSON backup export/import, CSV export/import (the
-  year grid keeps the original `budget_<year>.csv` shape), demo data
-  opt-in and one-tap delete, currency display (GBP/USD/EUR), and a
-  start-over danger zone.
+  year grid keeps the original `budget_<year>.csv` shape), a read-only
+  Google Sheet import template with Monthly and Weekly tabs linked from
+  the import screen, demo data opt-in and one-tap delete, currency
+  display (GBP/USD/EUR), and a start-over danger zone.
 - **Undo everywhere** — deletes, imports and demo-data changes all offer
   Undo from a toast instead of a confirmation modal.
 - **Private by design** — all data is stored in your browser's
@@ -65,9 +66,25 @@ counted in the report.
 - **Ledger** (`mybudget_transactions_<year>.csv`) — every entry, one per
   row: date, type, category, account, note, amount (savings withdrawals
   are negative).
+- **Week grid** — the Weekly tab of the import template: weeks down the
+  side (first column is the week starting date, a Monday), categories
+  across the top. The Salary column counts as money in, savings-account
+  columns count as savings, every other column counts as spending, and
+  each filled cell becomes one entry dated that Monday.
 
-Both formats import back from the Data view. Grid files carry no year, so
-you pick the year on import. Exact duplicates are skipped.
+All three formats import back from the Data view. Monthly grid files
+carry no year, so you pick the year on import. Exact duplicates are
+skipped, and skipped rows are reported by row number with the reason.
+Ledger and week-grid dates may be ISO (`2026-11-15`) or UK style
+(`15/11/2026`).
+
+The import screen links a read-only Google Sheet template so people
+never have to guess the layout: make a copy, fill in the Monthly tab
+(one row per category across 12 months) or the Weekly tab (weeks down
+the side, categories across the top, pre-filled), download it as CSV,
+and upload the file here.
+
+Template: https://docs.google.com/spreadsheets/d/1sHUaxe8KgCGft1APzje5LoIbJnOE0UFtHPNAQ7w5xCg/edit?usp=sharing
 
 ## Tech
 
@@ -86,7 +103,7 @@ you pick the year on import. Exact duplicates are skipped.
 npm install
 npm run dev      # dev server at http://localhost:5173
 npm run build    # production build in the dist/ folder
-npm test         # test suite (122 tests)
+npm test         # test suite (139 tests)
 ```
 
 ## Deploying
