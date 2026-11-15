@@ -494,6 +494,7 @@ export default function App() {
       return {
         ok: true,
         message: `Nothing new to import — ${duplicates} ${duplicates === 1 ? "row was" : "rows were"} already here and ${result.skipped} ${result.skipped === 1 ? "row was" : "rows were"} skipped.`,
+        skippedRows: result.skippedRows,
       };
     }
     commit(
@@ -508,6 +509,7 @@ export default function App() {
     return {
       ok: true,
       message: `Imported ${added} ${added === 1 ? "entry" : "entries"}${newCategories.length ? `, created ${newCategories.length} ${newCategories.length === 1 ? "category" : "categories"}` : ""}${newAccounts.length ? ` and ${newAccounts.length} ${newAccounts.length === 1 ? "account" : "accounts"}` : ""}. ${duplicates} duplicate ${duplicates === 1 ? "row" : "rows"} skipped, ${result.skipped} invalid ${result.skipped === 1 ? "row" : "rows"} skipped.`,
+      skippedRows: result.skippedRows,
     };
   }
 

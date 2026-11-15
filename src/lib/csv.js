@@ -17,7 +17,7 @@
 // 2. A transactions ledger: Date,Type,Category,Account,Note,Amount —
 //    one row per entry, signed amounts for savings.
 
-import { MONTH_ABBR, clampDay, isValidISO, monthKeyOf, toISO } from "./dates.js";
+import { MONTH_ABBR, clampDay, monthKeyOf, parseLooseDate, toISO } from "./dates.js";
 import { minorToPounds, poundsToMinor } from "./money.js";
 import { monthlyCategoryTotals, yearSeries } from "./stats.js";
 import { newId } from "./ids.js";
@@ -152,7 +152,10 @@ function detectFormat(rows) {
  * Parse CSV text into importable transactions.
  * `year` is used for grid imports (the grid has no year column).
  * `memberId` is stamped on every imported transaction.
- * Returns { format, transactions, newCategoryNames, newAccountNames, skipped, errors }.
+ * Returns { format, transactions, newCategoryNames, newAccountNames,
+ * skipped, skippedRows, errors }. `skippedRows` names every skipped row
+ * ({ row, reason }) using the file's row numbers, header row included,
+ * so the report matches what the user sees in their spreadsheet.
  * Transactions carry categoryName/accountName (not ids) — the caller
  * resolves them against state, creating categories as needed.
  */
@@ -165,7 +168,12 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
     newCategoryNames: [],
     newAccountNames: [],
     skipped: 0,
+    skippedRows: [],
     errors: [],
+  };
+  const skip = (row, reason) => {
+    result.skipped += 1;
+    result.skippedRows.push({ row, reason });
   };
   if (format === "empty") {
     result.errors.push("The file is empty.");
@@ -196,7 +204,9 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
   if (format === "grid") {
     const header = rows[0].map((c) => c.trim().toLowerCase());
     const monthCols = MONTH_ABBR.map((m) => header.indexOf(m.toLowerCase()));
-    for (const row of rows.slice(1)) {
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNumber = i + 1;
       const label = (row[0] || "").trim();
       if (!label) continue;
       if (GRID_SUMMARY_ROWS.has(label.toLowerCase())) continue;
@@ -207,12 +217,16 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
         const raw = (row[col] || "").trim();
         if (raw === "") continue;
         const value = Number(raw);
-        if (!Number.isFinite(value) || value === 0) {
-          result.skipped += 1;
+        if (!Number.isFinite(value)) {
+          skip(rowNumber, `${MONTH_ABBR[m]} amount "${raw}" is not a number`);
+          continue;
+        }
+        if (value === 0) {
+          skip(rowNumber, `${MONTH_ABBR[m]} amount is 0`);
           continue;
         }
         if (value < 0) {
-          result.skipped += 1;
+          skip(rowNumber, `${MONTH_ABBR[m]} amount is negative`);
           continue;
         }
         rememberCategory(label);
@@ -244,12 +258,27 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
   const acctCol = col("account");
   const noteCol = col("note");
   const amountCol = col("amount");
-  for (const row of rows.slice(1)) {
-    const date = (row[dateCol] || "").trim();
-    const amountRaw = (row[amountCol] || "").trim().replace(/[£$€,]/g, "");
-    const amount = Number(amountRaw);
-    if (!isValidISO(date) || !Number.isFinite(amount) || amount === 0) {
-      result.skipped += 1;
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 1;
+    const rawDate = (row[dateCol] || "").trim();
+    const date = parseLooseDate(rawDate);
+    const rawAmount = (row[amountCol] || "").trim();
+    const amount = Number(rawAmount.replace(/[£$€,]/g, ""));
+    if (!date) {
+      skip(rowNumber, rawDate === "" ? "no date" : `date "${rawDate}" is not a real date`);
+      continue;
+    }
+    if (rawAmount === "") {
+      skip(rowNumber, "no amount");
+      continue;
+    }
+    if (!Number.isFinite(amount)) {
+      skip(rowNumber, `amount "${rawAmount}" is not a number`);
+      continue;
+    }
+    if (amount === 0) {
+      skip(rowNumber, "amount is 0");
       continue;
     }
     const typeText = (row[typeCol] || "").trim().toLowerCase();
@@ -261,7 +290,7 @@ export function parseImportCSV(text, { year, memberId, now = new Date().toISOStr
     const categoryName = catCol >= 0 ? (row[catCol] || "").trim() : "";
     const accountName = acctCol >= 0 ? (row[acctCol] || "").trim() : "";
     if (kind !== "saving" && amount < 0) {
-      result.skipped += 1;
+      skip(rowNumber, "amount is negative");
       continue;
     }
     rememberCategory(categoryName);

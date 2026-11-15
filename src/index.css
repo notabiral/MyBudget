@@ -137,6 +137,10 @@ a {
   color: var(--accent-deep);
 }
 
+a:hover {
+  color: var(--accent);
+}
+
 img,
 svg {
   display: block;
@@ -1577,6 +1581,55 @@ svg {
 .import-result.is-error {
   background: var(--bad-soft);
   color: var(--bad);
+}
+
+/* Numbered template steps. The global list reset removes markers, so the
+   decimal numbering is restored explicitly here. */
+.import-steps {
+  list-style: decimal;
+  padding-left: 22px;
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 15px;
+  max-width: 56ch;
+}
+
+.import-steps a {
+  font-weight: 600;
+}
+
+.format-spec {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--text-2);
+  max-width: 56ch;
+}
+
+.format-spec summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.format-spec p {
+  margin-top: 8px;
+}
+
+.skipped-rows {
+  margin-top: 12px;
+  font-size: 14px;
+  overflow-wrap: break-word;
+}
+
+.skipped-rows ul {
+  list-style: disc;
+  padding-left: 20px;
+  margin-top: 6px;
+  display: grid;
+  gap: 2px;
+  color: var(--text-2);
 }
 
 .danger-panel {

@@ -115,4 +115,78 @@ describe("parseImportCSV", () => {
     expect(bad.transactions).toHaveLength(0);
     expect(bad.skipped).toBe(2);
   });
+
+  it("accepts DD/MM/YYYY ledger dates alongside ISO dates", () => {
+    const text = [
+      "Date,Type,Category,Account,Note,Amount",
+      "15/11/2026,Expense,Groceries,,Weekly shop,64.20",
+      "5/1/2026,Income,Salary,,Pay,2900.00",
+      "2026-01-05,Expense,Groceries,,ISO row,10.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.format).toBe("ledger");
+    expect(result.transactions).toHaveLength(3);
+    expect(result.transactions.map((t) => t.date)).toEqual([
+      "2026-11-15",
+      "2026-01-05",
+      "2026-01-05",
+    ]);
+    expect(result.skipped).toBe(0);
+    expect(result.skippedRows).toEqual([]);
+  });
+
+  it("names each skipped ledger row and its reason, using file row numbers", () => {
+    const text = [
+      "Date,Type,Category,Account,Note,Amount",
+      "31/02/2026,Expense,Food,,impossible date,10.00",
+      "2026-01-05,Expense,Food,,not a number,abc",
+      "2026-01-06,Expense,Food,,zero amount,0",
+      "2026-01-07,Expense,Food,,negative amount,-5.00",
+      ",Expense,Food,,no date,10.00",
+      "2026-01-08,Expense,Food,,no amount,",
+      "2026-01-09,Expense,Food,,good row,10.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.transactions).toHaveLength(1);
+    expect(result.skipped).toBe(6);
+    expect(result.skippedRows).toEqual([
+      { row: 2, reason: 'date "31/02/2026" is not a real date' },
+      { row: 3, reason: 'amount "abc" is not a number' },
+      { row: 4, reason: "amount is 0" },
+      { row: 5, reason: "amount is negative" },
+      { row: 6, reason: "no date" },
+      { row: 7, reason: "no amount" },
+    ]);
+  });
+
+  it("names skipped grid cells with row number and month", () => {
+    const text = [
+      "Category,Jan,Feb,Mar",
+      "Rent,1025.00,abc,0",
+      "Grocery,-10,20.00,30.00",
+    ].join("\n");
+    const result = parseImportCSV(text, { year: 2026, memberId: "m1" });
+    expect(result.format).toBe("grid");
+    expect(result.transactions).toHaveLength(3);
+    expect(result.skipped).toBe(3);
+    expect(result.skippedRows).toEqual([
+      { row: 2, reason: 'Feb amount "abc" is not a number' },
+      { row: 2, reason: "Mar amount is 0" },
+      { row: 3, reason: "Jan amount is negative" },
+    ]);
+  });
+
+  it("detects the Monthly template shape as grid and the Weekly template shape as ledger", () => {
+    const monthly = parseImportCSV("Category,Jan,Feb\nRent,1025.00,1025.00\n", {
+      year: 2026,
+      memberId: "m1",
+    });
+    expect(monthly.format).toBe("grid");
+    const weekly = parseImportCSV(
+      "Date,Type,Category,Account,Note,Amount\n15/11/2026,Expense,Groceries,,Weekly shop,64.20\n",
+      { year: 2026, memberId: "m1" }
+    );
+    expect(weekly.format).toBe("ledger");
+    expect(weekly.transactions).toHaveLength(1);
+  });
 });
