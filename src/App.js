@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import "./App.css";
 
 const months = [
   "Jan","Feb","Mar","Apr","May","Jun",
@@ -196,186 +197,214 @@ export default function App() {
   };
 
   return (
-    <div style={{ padding: 20, fontFamily: "Arial" }}>
-      <h2>Budget App</h2>
+    <div className="ledger">
+      <a className="skip-link" href="#main">Skip to main content</a>
 
-      {/* Controls */}
-      <div style={{ marginBottom: 10 }}>
-        <input value={year} onChange={e => setYear(e.target.value)} />
-        <select
-          value={selectedMonth}
-          onChange={e => setSelectedMonth(e.target.value)}
-        >
-          {months.map(m => <option key={m}>{m}</option>)}
-        </select>
-        <button onClick={downloadCSV}>Download CSV</button>
-      </div>
+      <header className="masthead">
+        <div>
+          <p className="masthead-eyebrow" translate="no">MyBudget</p>
+          <h1>Budget App</h1>
+        </div>
+        <div className="controls">
+          <div className="field">
+            <label htmlFor="ledger-year">Year</label>
+            <input id="ledger-year" className="control-input" name="year" autoComplete="off" inputMode="numeric" spellCheck={false} value={year} onChange={e => setYear(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="ledger-month">Month</label>
+            <select id="ledger-month" className="control-input" name="month" autoComplete="off" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+              {months.map(m => <option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <button type="button" className="button button-primary" onClick={downloadCSV}>Download CSV</button>
+        </div>
+      </header>
 
-      {/* SUMMARY */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
-        <Card label="Income" value={income} color="#90dbf4" />
-        <Card label="Expenses" value={total} color="#f4a261" />
-        <Card label="Left" value={extra} color={extra < 0 ? "#ff6b6b" : "#80ed99"} />
-        <Card label="Auto Savings" value={getCarriedSavings(months.indexOf(selectedMonth))} color="#00f5d4" />
-        <Card label="Accounts" value={manualSavings} color="#bdb2ff" />
-        <Card label="Spent %" value={`${percent.toFixed(0)}%`} color="#2a9d8f" />
-      </div>
+      <main id="main">
+        {/* SUMMARY */}
+        <section className="summary" aria-label={`Summary for ${selectedMonth} ${year}`}>
+          <Card label="Income" value={income} />
+          <Card label="Expenses" value={total} />
+          <Card label="Left" value={extra} tone={extra < 0 ? "negative" : "positive"} />
+          <Card label="Auto Savings" value={getCarriedSavings(months.indexOf(selectedMonth))} />
+          <Card label="Accounts" value={manualSavings} />
+          <Card label="Spent %" value={`${percent.toFixed(0)}%`} />
+        </section>
 
-      {/* Add Category */}
-      <div style={{ marginBottom: 10 }}>
-        <input
-          placeholder="New category"
-          value={newCategory}
-          onChange={e => setNewCategory(e.target.value)}
-        />
-        <button onClick={addCategory}>Add</button>
-      </div>
+        {/* Add Category */}
+        <div className="add-category">
+          <label className="visually-hidden" htmlFor="new-category">New category</label>
+          <input
+            id="new-category"
+            className="control-input"
+            name="new-category"
+            autoComplete="off"
+            placeholder="New category…"
+            value={newCategory}
+            onChange={e => setNewCategory(e.target.value)}
+          />
+          <button type="button" className="button" onClick={addCategory}>Add</button>
+        </div>
 
-      {/* TABLE */}
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ borderCollapse: "collapse", minWidth: "1100px" }}>
-          <thead style={{ background: "#2a9d8f", color: "white" }}>
-            <tr>
-              <th style={th}>Category</th>
-              {months.map(m => <th key={m} style={th}>{m}</th>)}
-            </tr>
-          </thead>
-
-          <tbody>
-            {categories.map(cat => (
-              <tr key={cat}>
-                <td style={catTd}>
-                  <input
-                    value={cat}
-                    onChange={e => renameCategory(cat, e.target.value)}
-                    style={{ width: 120 }}
-                  />
-                  <button onClick={() => deleteCategory(cat)}>❌</button>
-                </td>
-
-                {months.map(m => (
-                  <td key={m} style={td}>
-                    <input
-                      type="number"
-                      value={current.expenses[cat]?.[m] || ""}
-                      onChange={e => updateExpense(cat, m, e.target.value)}
-                      style={input}
-                    />
-                  </td>
-                ))}
+        {/* TABLE */}
+        <div className="table-wrap">
+          <table className="ledger-table">
+            <caption className="visually-hidden">Budget for {year}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                {months.map(m => <th key={m} scope="col">{m}</th>)}
               </tr>
-            ))}
+            </thead>
 
-            {/* TOTAL */}
-            <tr style={{ background: "#f4a261" }}>
-              <td style={catTd}><b>Total</b></td>
-              {months.map(m => (
-                <td key={m} style={td}>{getTotalExpenses(m).toFixed(2)}</td>
-              ))}
-            </tr>
-
-            {/* SALARY */}
-            <tr style={{ background: "#90dbf4" }}>
-              <td style={catTd}><b>Salary</b></td>
-              {months.map(m => (
-                <td key={m} style={td}>
-                  <input
-                    type="number"
-                    value={current.salary[m] || ""}
-                    onChange={e => updateSalary(m, e.target.value)}
-                    style={input}
-                  />
-                </td>
-              ))}
-            </tr>
-
-            {/* EXTRA */}
-            <tr>
-              <td style={catTd}><b>Extra</b></td>
-              {months.map(m => {
-                const val = getExtraMoney(m);
-                return (
-                  <td key={m} style={{ ...td, color: val < 0 ? "red" : "green" }}>
-                    {val.toFixed(2)}
-                  </td>
-                );
-              })}
-            </tr>
-
-            {/* AUTO SAVINGS */}
-            <tr style={{ background: "#00f5d4" }}>
-              <td style={catTd}><b>Auto Savings</b></td>
-              {months.map((_, i) => (
-                <td key={i} style={td}>
-                  {getCarriedSavings(i).toFixed(2)}
-                </td>
-              ))}
-            </tr>
-
-            {/* MANUAL SAVINGS */}
-            <tr style={{ background: "#bdb2ff" }}>
-              <td style={catTd}><b>Accounts</b></td>
-              {months.map(m => (
-                <td key={m} style={td}>
-                  {getManualSavings(m).toFixed(2)}
-                </td>
-              ))}
-            </tr>
-
-            {savingsCategories.map(cat => (
-              <tr key={cat}>
-                <td style={catTd}>{cat}</td>
-                {months.map(m => (
-                  <td key={m} style={td}>
-                    <input
-                      type="number"
-                      value={current.savings?.[cat]?.[m] || ""}
-                      onChange={e => updateSavings(cat, m, e.target.value)}
-                      style={input}
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-
-            {/* PROGRESS */}
-            <tr>
-              <td style={catTd}><b>Spent %</b></td>
-              {months.map(m => {
-                const p = getSpendPercent(m);
-                return (
-                  <td key={m} style={td}>
-                    <div style={{ background: "#eee", height: 8 }}>
-                      <div
-                        style={{
-                          width: `${Math.min(p, 100)}%`,
-                          height: "100%",
-                          background: p > 100 ? "red" : "#2a9d8f"
-                        }}
+            <tbody>
+              {categories.map(cat => (
+                <tr key={cat}>
+                  <th scope="row">
+                    <div className="row-label-inner">
+                      <input
+                        className="rename-input"
+                        name={`rename-${cat}`}
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={cat}
+                        onChange={e => renameCategory(cat, e.target.value)}
+                        aria-label={`Rename category ${cat}`}
                       />
+                      <button type="button" className="delete-button" onClick={() => deleteCategory(cat)} aria-label={`Delete ${cat}`}>
+                        <span aria-hidden="true">×</span>
+                      </button>
                     </div>
-                    <small>{p.toFixed(0)}%</small>
+                  </th>
+
+                  {months.map(m => (
+                    <td key={m}>
+                      <input
+                        type="number"
+                        className="cell-input"
+                        name={`expense-${cat}-${m}`}
+                        autoComplete="off"
+                        value={current.expenses[cat]?.[m] || ""}
+                        onChange={e => updateExpense(cat, m, e.target.value)}
+                        aria-label={`${cat}, ${m}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* TOTAL */}
+              <tr className="row-total">
+                <th scope="row">Total</th>
+                {months.map(m => (
+                  <td key={m} className="figure">{getTotalExpenses(m).toFixed(2)}</td>
+                ))}
+              </tr>
+
+              {/* SALARY */}
+              <tr className="row-band">
+                <th scope="row">Salary</th>
+                {months.map(m => (
+                  <td key={m}>
+                    <input
+                      type="number"
+                      className="cell-input"
+                      name={`salary-${m}`}
+                      autoComplete="off"
+                      value={current.salary[m] || ""}
+                      onChange={e => updateSalary(m, e.target.value)}
+                      aria-label={`Salary, ${m}`}
+                    />
                   </td>
-                );
-              })}
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                ))}
+              </tr>
+
+              {/* EXTRA */}
+              <tr>
+                <th scope="row">Extra</th>
+                {months.map(m => {
+                  const val = getExtraMoney(m);
+                  return (
+                    <td key={m} className={val < 0 ? "figure negative" : "figure positive"}>
+                      {val.toFixed(2)}
+                    </td>
+                  );
+                })}
+              </tr>
+
+              {/* AUTO SAVINGS */}
+              <tr className="row-band">
+                <th scope="row">Auto Savings</th>
+                {months.map((_, i) => (
+                  <td key={i} className="figure">
+                    {getCarriedSavings(i).toFixed(2)}
+                  </td>
+                ))}
+              </tr>
+
+              {/* MANUAL SAVINGS */}
+              <tr className="row-band">
+                <th scope="row">Accounts</th>
+                {months.map(m => (
+                  <td key={m} className="figure">
+                    {getManualSavings(m).toFixed(2)}
+                  </td>
+                ))}
+              </tr>
+
+              {savingsCategories.map(cat => (
+                <tr key={cat}>
+                  <th scope="row" className="row-label-sub">{cat}</th>
+                  {months.map(m => (
+                    <td key={m}>
+                      <input
+                        type="number"
+                        className="cell-input"
+                        name={`savings-${cat}-${m}`}
+                        autoComplete="off"
+                        value={current.savings?.[cat]?.[m] || ""}
+                        onChange={e => updateSavings(cat, m, e.target.value)}
+                        aria-label={`${cat}, ${m}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* PROGRESS */}
+              <tr>
+                <th scope="row">Spent %</th>
+                {months.map(m => {
+                  const p = getSpendPercent(m);
+                  return (
+                    <td key={m}>
+                      <div className="spend-bar" aria-hidden="true">
+                        <div
+                          className={p > 100 ? "spend-fill over" : "spend-fill"}
+                          style={{ width: `${Math.min(p, 100)}%` }}
+                        />
+                      </div>
+                      <small className="spend-label">{p.toFixed(0)}%</small>
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+
+      <footer className="ledger-footer">
+        <p>All data is stored in your browser's localStorage. Nothing is uploaded anywhere.</p>
+      </footer>
     </div>
   );
 }
 
 // Card
-const Card = ({ label, value, color }) => (
-  <div style={{ background: color, padding: 10, borderRadius: 8, minWidth: 120 }}>
-    <div>{label}</div>
-    <b>{value}</b>
+const Card = ({ label, value, tone }) => (
+  <div className={tone ? `summary-card tone-${tone}` : "summary-card"}>
+    <div className="summary-label">{label}</div>
+    <div className="summary-value">{value}</div>
   </div>
 );
-
-// styles
-const th = { padding: 10, border: "1px solid #ddd" };
-const td = { padding: 8, border: "1px solid #ddd", textAlign: "center" };
-const catTd = { ...td, fontWeight: "bold", background: "#f8f9fa" };
-const input = { width: 70 };

@@ -22,7 +22,8 @@ A simple personal budgeting app I built to track my money month by month — sal
 ## Tech
 
 - React 19, built with Create React App (react-scripts 5)
-- Plain CSS and inline styles, no UI framework
+- Plain CSS in `src/App.css`, no UI framework; the design system is locked in `DESIGN.md`
+- Fraunces and IBM Plex Mono via Google Fonts, with system serif/mono fallbacks
 - State persisted to `localStorage`
 
 ## Running it locally
