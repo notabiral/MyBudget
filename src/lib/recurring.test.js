@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { weekKeyOf } from "./dates.js";
 import { blankState } from "./model.js";
 import { materializeRules, occurrencesForRule } from "./recurring.js";
 
@@ -73,6 +74,15 @@ describe("occurrencesForRule", () => {
 
   it("returns nothing when the rule starts after the horizon", () => {
     expect(occurrencesForRule(rule({ startDate: "2027-01-01" }), "2026-06-01")).toEqual([]);
+  });
+
+  it("lands weekly occurrences in consecutive week groups", () => {
+    // A weekly rule's entries must group one per week under Monday-start
+    // week keys, including across the year boundary.
+    const r = rule({ frequency: "weekly", startDate: "2026-12-28", dayOfMonth: null });
+    const dates = occurrencesForRule(r, "2027-01-12");
+    expect(dates).toEqual(["2026-12-28", "2027-01-04", "2027-01-11"]);
+    expect(dates.map(weekKeyOf)).toEqual(["2026-W53", "2027-W01", "2027-W02"]);
   });
 });
 

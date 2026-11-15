@@ -1,5 +1,6 @@
 import {
   currentMonthKey,
+  currentWeekKey,
   daysInMonth,
   formatDate,
   monthKeyParts,
@@ -7,25 +8,40 @@ import {
   monthProgress,
   parseISO,
   todayISO,
+  weekKeyOf,
+  weekLabel,
+  weekProgress,
+  weekRange,
+  weekShortLabel,
 } from "../lib/dates.js";
 import { formatMoney, formatMoneyShort, formatPercent } from "../lib/money.js";
 import { axisMax, axisTicks } from "../lib/chart.js";
-import { accountBalance, categorySpend, monthSummary, totalSaved, trend } from "../lib/stats.js";
+import {
+  accountBalance,
+  categorySpend,
+  monthSummary,
+  totalSaved,
+  trend,
+  weekSummary,
+  weekTrend,
+} from "../lib/stats.js";
 import { Bar, CatDot, EmptyState } from "./ui.jsx";
 
-function verdictFor(summary, overCount, monthKey) {
+function verdictFor(summary, overCount, { periodNoun, daysLeft }) {
   const { income, expenses, opening, leftToSpend } = summary;
   if (income === 0 && expenses === 0) {
     if (opening > 0) {
-      return `${formatMoney(opening, summary.currency)} brought forward. Nothing recorded yet this month.`;
+      return `${formatMoney(opening, summary.currency)} brought forward. Nothing recorded yet this ${periodNoun}.`;
     }
     if (opening < 0) {
-      return `${formatMoney(-opening, summary.currency)} overdrawn from earlier months. Add income to get back above water.`;
+      return `${formatMoney(-opening, summary.currency)} overdrawn from earlier ${periodNoun}s. Add income to get back above water.`;
     }
-    return "Nothing recorded yet. Add your first entry and the month takes shape.";
+    return `Nothing recorded yet. Add your first entry and the ${periodNoun} takes shape.`;
   }
   if (leftToSpend < 0) {
-    return `Over by ${formatMoney(-leftToSpend, summary.currency)}. The month needs a plan B — or a smaller week.`;
+    return periodNoun === "week"
+      ? `Over by ${formatMoney(-leftToSpend, summary.currency)}. The week needs a plan B.`
+      : `Over by ${formatMoney(-leftToSpend, summary.currency)}. The month needs a plan B — or a smaller week.`;
   }
   if (income === 0) {
     if (opening > 0) {
@@ -37,16 +53,21 @@ function verdictFor(summary, overCount, monthKey) {
   if (overCount > 0) {
     parts.push(`${overCount} ${overCount === 1 ? "category" : "categories"} over budget`);
   }
-  const key = monthKeyParts(monthKey);
-  const now = parseISO(todayISO());
-  if (key && now && key.year === now.year && key.month === now.month) {
-    const remaining = daysInMonth(key.year, key.month) - now.day;
-    parts.push(remaining === 0 ? "last day of the month" : `${remaining} days to go`);
+  if (daysLeft !== null) {
+    parts.push(
+      daysLeft === 0
+        ? `last day of the ${periodNoun}`
+        : `${daysLeft} ${daysLeft === 1 ? "day" : "days"} to go`
+    );
   }
   return `${formatMoney(leftToSpend, summary.currency)} left. ${parts.join(". ")}.`;
 }
 
-function TrendChart({ data, currency }) {
+function TrendChart({ data, currency, periodMode }) {
+  const isWeek = periodMode === "week";
+  const periodNoun = isWeek ? "week" : "month";
+  const labelFor = (d) => (isWeek ? weekShortLabel(d.key) : monthLabel(d.key, "short").split(" ")[0]);
+  const fullLabelFor = (d) => (isWeek ? weekLabel(d.key) : monthLabel(d.key));
   const W = 560;
   const H = 190;
   // Axis labels live in their own left gutter, right-aligned clear of the
@@ -69,7 +90,7 @@ function TrendChart({ data, currency }) {
         className="trend-chart"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Bar chart of money in and money out for the last ${data.length} months`}
+        aria-label={`Bar chart of money in and money out for the last ${data.length} ${periodNoun}s`}
       >
         {ticks.map((value) => {
           const y = PAD_T + chartH * (1 - value / max);
@@ -86,7 +107,8 @@ function TrendChart({ data, currency }) {
           const gx = PAD_L + i * groupW + (groupW - (barW * 2 + 6)) / 2;
           const incomeH = (d.income / max) * chartH;
           const expenseH = (d.expenses / max) * chartH;
-          const label = monthLabel(d.key, "short").split(" ")[0];
+          const label = labelFor(d);
+          const fullLabel = fullLabelFor(d);
           return (
             <g key={d.key}>
               <rect
@@ -97,7 +119,7 @@ function TrendChart({ data, currency }) {
                 rx="3"
                 style={{ fill: "var(--good)" }}
               >
-                <title>{`${monthLabel(d.key)}: ${formatMoney(d.income, currency)} in`}</title>
+                <title>{`${fullLabel}: ${formatMoney(d.income, currency)} in`}</title>
               </rect>
               <rect
                 x={gx + barW + 6}
@@ -107,7 +129,7 @@ function TrendChart({ data, currency }) {
                 rx="3"
                 style={{ fill: "var(--text)" }}
               >
-                <title>{`${monthLabel(d.key)}: ${formatMoney(d.expenses, currency)} out`}</title>
+                <title>{`${fullLabel}: ${formatMoney(d.expenses, currency)} out`}</title>
               </rect>
               <text x={PAD_L + i * groupW + groupW / 2} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--text-2)" fontFamily="IBM Plex Mono, monospace">
                 {label}
@@ -117,10 +139,10 @@ function TrendChart({ data, currency }) {
         })}
       </svg>
       <table className="visually-hidden">
-        <caption>Money in and out, last {data.length} months</caption>
+        <caption>Money in and out, last {data.length} {periodNoun}s</caption>
         <thead>
           <tr>
-            <th scope="col">Month</th>
+            <th scope="col">{isWeek ? "Week" : "Month"}</th>
             <th scope="col">Money in</th>
             <th scope="col">Money out</th>
           </tr>
@@ -128,7 +150,7 @@ function TrendChart({ data, currency }) {
         <tbody>
           {data.map((d) => (
             <tr key={d.key}>
-              <th scope="row">{monthLabel(d.key)}</th>
+              <th scope="row">{fullLabelFor(d)}</th>
               <td>{formatMoney(d.income, currency)}</td>
               <td>{formatMoney(d.expenses, currency)}</td>
             </tr>
@@ -147,22 +169,41 @@ function TrendChart({ data, currency }) {
   );
 }
 
-export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEditTxn }) {
+export default function Overview({ state, periodMode, weekKey, monthKey, onNavigate, onAddEntry, onEditTxn }) {
   const currency = state.currency;
-  const summary = { ...monthSummary(state, monthKey), currency };
-  const rows = categorySpend(state, monthKey);
+  const isWeek = periodMode === "week";
+  const periodNoun = isWeek ? "week" : "month";
+  const periodKey = isWeek ? weekKey : monthKey;
+  const periodLabel = isWeek ? weekLabel(weekKey) : monthLabel(monthKey);
+  const summary = {
+    ...(isWeek ? weekSummary(state, weekKey) : monthSummary(state, monthKey)),
+    currency,
+  };
+  const rows = categorySpend(state, periodKey, { mode: periodMode });
   const overCount = rows.filter((r) => r.over).length;
-  const trendData = trend(state, monthKey, 6);
-  const isCurrentMonth = monthKey === currentMonthKey();
-  const progress = monthProgress(monthKey);
-  const keyParts = monthKeyParts(monthKey);
-  const daysLeft =
-    keyParts && isCurrentMonth
-      ? daysInMonth(keyParts.year, keyParts.month) - parseISO(todayISO()).day
-      : null;
+  const trendData = isWeek ? weekTrend(state, weekKey, 8) : trend(state, monthKey, 6);
+  const isCurrentPeriod = isWeek ? weekKey === currentWeekKey() : monthKey === currentMonthKey();
+  const progress = isWeek ? weekProgress(weekKey) : monthProgress(monthKey);
+  const daysLeft = (() => {
+    if (!isCurrentPeriod) return null;
+    const today = todayISO();
+    if (isWeek) {
+      const range = weekRange(weekKey);
+      if (!range) return null;
+      const end = parseISO(range.end);
+      const now = parseISO(today);
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      return Math.round(
+        (Date.UTC(end.year, end.month - 1, end.day) - Date.UTC(now.year, now.month - 1, now.day)) / DAY_MS
+      );
+    }
+    const keyParts = monthKeyParts(monthKey);
+    if (!keyParts) return null;
+    return daysInMonth(keyParts.year, keyParts.month) - parseISO(today).day;
+  })();
 
   const recent = state.transactions
-    .filter((t) => t.date.slice(0, 7) === monthKey)
+    .filter((t) => (isWeek ? weekKeyOf(t.date) === weekKey : t.date.slice(0, 7) === monthKey))
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 6);
@@ -181,10 +222,10 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
 
   return (
     <>
-      <section className="hero" aria-label={`Overview for ${monthLabel(monthKey)}`}>
+      <section className="hero" aria-label={`Overview for ${periodLabel}`}>
         <div className="wrap hero-inner">
           <h1 className="eyebrow hero-eyebrow">
-            {monthLabel(monthKey)} — Left to spend
+            {periodLabel} — Left to spend
           </h1>
           <p className={figureNegative ? "hero-figure is-negative" : "hero-figure"}>
             {figureNegative ? (
@@ -196,7 +237,7 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
               figureText
             )}
           </p>
-          <p className="hero-verdict">{verdictFor(summary, overCount, monthKey)}</p>
+          <p className="hero-verdict">{verdictFor(summary, overCount, { periodNoun, daysLeft })}</p>
           <dl className="hero-facts">
             <div className="hero-fact">
               <dt className="hero-fact-label">Money in</dt>
@@ -221,10 +262,10 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
               <dd className="hero-fact-value">{formatPercent(summary.spendRatio)}</dd>
             </div>
           </dl>
-          {isCurrentMonth && (
+          {isCurrentPeriod && (
             <div className="hero-progress">
               <div className="hero-progress-label">
-                <span>Month elapsed</span>
+                <span>{isWeek ? "Week elapsed" : "Month elapsed"}</span>
                 <span>
                   {daysLeft === 0 ? "Last day" : `${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`}
                 </span>
@@ -251,7 +292,7 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
             </div>
             {rows.length === 0 || rows.every((r) => r.spent === 0) ? (
               <EmptyState title="No spending yet">
-                <p>Nothing recorded for {monthLabel(monthKey)} so far. Add your first expense and this fills in.</p>
+                <p>Nothing recorded for {periodLabel} so far. Add your first expense and this fills in.</p>
               </EmptyState>
             ) : (
               <ul>
@@ -298,14 +339,16 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
 
           <section className="panel panel-narrow" aria-labelledby="trend-title">
             <div className="section-head">
-              <h2 className="section-title" id="trend-title">The last 6 months</h2>
+              <h2 className="section-title" id="trend-title">
+                {isWeek ? "The last 8 weeks" : "The last 6 months"}
+              </h2>
             </div>
             {trendData.every((d) => d.income === 0 && d.expenses === 0) ? (
               <EmptyState title="No history yet">
-                <p>Once two or more months have entries, the trend shows up here.</p>
+                <p>Once two or more {periodNoun}s have entries, the trend shows up here.</p>
               </EmptyState>
             ) : (
-              <TrendChart data={trendData} currency={currency} />
+              <TrendChart data={trendData} currency={currency} periodMode={periodMode} />
             )}
           </section>
 
@@ -317,8 +360,8 @@ export default function Overview({ state, monthKey, onNavigate, onAddEntry, onEd
               </button>
             </div>
             {recent.length === 0 ? (
-              <EmptyState title="Quiet month">
-                <p>No entries in {monthLabel(monthKey)} yet.</p>
+              <EmptyState title={isWeek ? "Quiet week" : "Quiet month"}>
+                <p>No entries in {periodLabel} yet.</p>
               </EmptyState>
             ) : (
               <ul>

@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { formatDate, monthKeyOf, monthLabel } from "../lib/dates.js";
+import { formatDate, monthLabel, weekLabel } from "../lib/dates.js";
 import { formatMoney } from "../lib/money.js";
+import { commitInlineAmount } from "../lib/quickadd.js";
 import { filterTransactions } from "../lib/stats.js";
 import { describeRule } from "../lib/recurring.js";
+import QuickAdd from "./QuickAdd.jsx";
 import { CatDot, EmptyState } from "./ui.jsx";
 
 function groupByDate(txns) {
@@ -17,18 +19,43 @@ function groupByDate(txns) {
 
 export default function Transactions({
   state,
+  periodMode,
+  weekKey,
   monthKey,
+  defaultDate,
   onAddEntry,
+  onQuickAdd,
+  onMakeRepeating,
   onEditTxn,
+  onUpdateTxnAmount,
   onDeleteTxn,
   onToggleRule,
   onDeleteRule,
 }) {
   const currency = state.currency;
+  const isWeek = periodMode === "week";
+  const periodLabel = isWeek ? weekLabel(weekKey) : monthLabel(monthKey);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("all");
   const [categoryId, setCategoryId] = useState("all");
   const [showAll, setShowAll] = useState(false);
+  // Inline amount editing, following the Budgets blur-commit pattern:
+  // tap an amount, edit, blur or Enter commits, Escape reverts.
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState("");
+
+  function startAmountEdit(txn) {
+    setEditingId(txn.id);
+    setDraft(String(txn.amountMinor / 100));
+  }
+
+  function commitAmountEdit(txn) {
+    const committed = commitInlineAmount(draft, txn.kind);
+    if (committed !== null && committed !== txn.amountMinor) {
+      onUpdateTxnAmount(txn.id, committed);
+    }
+    setEditingId(null);
+  }
 
   const categoryById = new Map(state.categories.map((c) => [c.id, c]));
   const accountById = new Map(state.accounts.map((a) => [a.id, a]));
@@ -39,9 +66,10 @@ export default function Transactions({
         query,
         kind,
         categoryId,
-        monthKey: showAll ? null : monthKey,
+        monthKey: showAll || isWeek ? null : monthKey,
+        weekKey: showAll || !isWeek ? null : weekKey,
       }),
-    [state, query, kind, categoryId, monthKey, showAll]
+    [state, query, kind, categoryId, monthKey, weekKey, isWeek, showAll]
   );
   const groups = useMemo(() => groupByDate(filtered), [filtered]);
 
@@ -56,13 +84,17 @@ export default function Transactions({
           <p className="view-sub">
             {showAll
               ? "Every entry, newest first."
-              : `Entries for ${monthLabel(monthKey)}. Switch months in the header to time-travel.`}
+              : isWeek
+                ? `Entries for the week of ${periodLabel}. Switch weeks in the header to time-travel.`
+                : `Entries for ${periodLabel}. Switch months in the header to time-travel.`}
           </p>
         </div>
         <button type="button" className="button button-primary" onClick={onAddEntry}>
           Add entry
         </button>
       </div>
+
+      <QuickAdd state={state} defaultDate={defaultDate} onQuickAdd={onQuickAdd} onMakeRepeating={onMakeRepeating} />
 
       {state.rules.length > 0 && (
         <section className="panel mt-24" aria-labelledby="repeating-title">
@@ -177,7 +209,7 @@ export default function Transactions({
             checked={showAll}
             onChange={(e) => setShowAll(e.target.checked)}
           />
-          All months
+          {isWeek ? "All weeks" : "All months"}
         </label>
       </div>
 
@@ -216,6 +248,14 @@ export default function Transactions({
                   const acct = accountById.get(t.accountId);
                   const title = t.note || cat?.name || acct?.name || "Entry";
                   const sub = [cat?.name, acct?.name].filter(Boolean).join(" · ");
+                  const amountClass =
+                    t.kind === "income"
+                      ? "txn-amount is-income"
+                      : t.kind === "saving"
+                        ? "txn-amount is-saving"
+                        : "txn-amount";
+                  const sign =
+                    t.kind === "income" ? "+" : t.kind === "expense" ? "−" : t.amountMinor < 0 ? "−" : "+";
                   return (
                     <li className="txn-row" key={t.id}>
                       <div className="txn-row-main">
@@ -229,18 +269,35 @@ export default function Transactions({
                           {sub && <p className="txn-row-sub">{sub}</p>}
                         </div>
                       </div>
-                      <p
-                        className={
-                          t.kind === "income"
-                            ? "txn-amount is-income"
-                            : t.kind === "saving"
-                              ? "txn-amount is-saving"
-                              : "txn-amount"
-                        }
-                      >
-                        {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : t.amountMinor < 0 ? "−" : "+"}
-                        {formatMoney(Math.abs(t.amountMinor), currency)}
-                      </p>
+                      {editingId === t.id ? (
+                        <input
+                          className="input txn-amount-input"
+                          name="entry-amount"
+                          autoComplete="off"
+                          inputMode="decimal"
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onBlur={() => commitAmountEdit(t)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          aria-label={`Amount for ${title}`}
+                          data-autofocus
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className={`${amountClass} txn-amount-button`}
+                          onClick={() => startAmountEdit(t)}
+                          aria-label={`Edit amount for ${title}`}
+                          title="Edit amount"
+                        >
+                          {sign}
+                          {formatMoney(Math.abs(t.amountMinor), currency)}
+                        </button>
+                      )}
                       <div className="txn-row-actions">
                         <button
                           type="button"

@@ -7,7 +7,19 @@ import Overview from "./components/Overview.jsx";
 import Savings from "./components/Savings.jsx";
 import Transactions from "./components/Transactions.jsx";
 import { Logo } from "./components/ui.jsx";
-import { currentMonthKey, monthKeyOf, monthLabel, parseISO, shiftMonth, todayISO } from "./lib/dates.js";
+import {
+  currentMonthKey,
+  currentWeekKey,
+  monthKeyOf,
+  monthLabel,
+  parseISO,
+  shiftMonth,
+  shiftWeek,
+  todayISO,
+  weekKeyOf,
+  weekLabel,
+  weekRange,
+} from "./lib/dates.js";
 import { buildDemoState, stripDemoData } from "./lib/demo.js";
 import { newId } from "./lib/ids.js";
 import { exportGridCSV, exportTransactionsCSV, parseImportCSV } from "./lib/csv.js";
@@ -39,6 +51,10 @@ export default function App() {
   const [state, setState] = useState(boot.state);
   const [view, setView] = useState("overview");
   const [monthKey, setMonthKey] = useState(currentMonthKey());
+  const [weekKey, setWeekKey] = useState(currentWeekKey());
+  // The period mode lives in prefs so it survives reloads, like the
+  // currency setting. Month is the default; weekly-paid users opt in.
+  const periodMode = state.prefs.periodMode === "week" ? "week" : "month";
   const [dialog, setDialog] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [showOnboarding, setShowOnboarding] = useState(
@@ -126,10 +142,36 @@ export default function App() {
 
   // ---------- Entries ----------
 
+  /** The day the selected period points at: today when viewing the
+   * current period, otherwise the period's first day. */
+  function defaultDateForPeriod() {
+    if (periodMode === "week") {
+      if (weekKey === currentWeekKey()) return todayISO();
+      return weekRange(weekKey)?.start || todayISO();
+    }
+    return monthKey === currentMonthKey() ? todayISO() : `${monthKey}-01`;
+  }
+
+  function setPeriodMode(mode) {
+    if (mode === periodMode) return;
+    // Keep the user's place: switching modes selects the period that
+    // contains the day the current period points at.
+    if (mode === "week") {
+      setWeekKey(weekKeyOf(defaultDateForPeriod()));
+    } else {
+      setMonthKey(monthKeyOf(weekRange(weekKey)?.start || todayISO()));
+    }
+    update((prev) => ({ ...prev, prefs: { ...prev.prefs, periodMode: mode } }));
+  }
+
   function openAddEntry() {
-    const defaultDate =
-      monthKey === currentMonthKey() ? todayISO() : `${monthKey}-01`;
-    setDialog({ mode: "add", txn: null, defaultDate });
+    setDialog({ mode: "add", txn: null, defaultDate: defaultDateForPeriod() });
+  }
+
+  // "Make it repeating" from the quick-add row: the full dialog opens
+  // with repeating pre-ticked and the typed draft carried over.
+  function openRepeatingEntry(draft) {
+    setDialog({ mode: "add", txn: null, defaultDate: defaultDateForPeriod(), prefill: draft });
   }
 
   function openEditEntry(txn) {
@@ -212,6 +254,15 @@ export default function App() {
     setDialog(null);
   }
 
+  // Inline amount edit from the Entries rows: an ordinary edit, like the
+  // Budgets inputs — persisted, no toast, no undo.
+  function updateTxnAmount(id, amountMinor) {
+    update((prev) => ({
+      ...prev,
+      transactions: prev.transactions.map((t) => (t.id === id ? { ...t, amountMinor } : t)),
+    }));
+  }
+
   // ---------- Categories ----------
 
   function createCategory(name, kind) {
@@ -229,11 +280,12 @@ export default function App() {
     }));
   }
 
-  function setBudget(id, monthlyBudgetMinor) {
+  function setBudget(id, field, value) {
+    if (field !== "monthlyBudgetMinor" && field !== "weeklyBudgetMinor") return;
     update((prev) => ({
       ...prev,
       categories: prev.categories.map((c) =>
-        c.id === id ? { ...c, monthlyBudgetMinor } : c
+        c.id === id ? { ...c, [field]: value } : c
       ),
     }));
   }
@@ -532,6 +584,7 @@ export default function App() {
     setToasts([]);
     setView("overview");
     setMonthKey(currentMonthKey());
+    setWeekKey(currentWeekKey());
     setShowOnboarding(true);
   }
 
@@ -553,8 +606,16 @@ export default function App() {
     );
   }
 
-  const defaultDate = monthKey === currentMonthKey() ? todayISO() : `${monthKey}-01`;
-  const isCurrentMonth = monthKey === currentMonthKey();
+  const defaultDate = defaultDateForPeriod();
+  const isCurrentPeriod =
+    periodMode === "week" ? weekKey === currentWeekKey() : monthKey === currentMonthKey();
+  const periodLabel = periodMode === "week" ? weekLabel(weekKey) : monthLabel(monthKey);
+  const prevPeriodLabel =
+    periodMode === "week" ? weekLabel(shiftWeek(weekKey, -1)) : monthLabel(shiftMonth(monthKey, -1));
+  const nextPeriodLabel =
+    periodMode === "week" ? weekLabel(shiftWeek(weekKey, 1)) : monthLabel(shiftMonth(monthKey, 1));
+  const currentPeriodLabel =
+    periodMode === "week" ? weekLabel(currentWeekKey()) : monthLabel(currentMonthKey());
 
   const notices = (
     <>
@@ -624,35 +685,69 @@ export default function App() {
             </span>
           </button>
           <div className="header-spacer" />
-          <nav className="month-nav" aria-label="Month">
-            <button
-              type="button"
-              className="month-nav-arrow"
-              onClick={() => setMonthKey((k) => shiftMonth(k, -1))}
-              aria-label={`Previous month, ${monthLabel(shiftMonth(monthKey, -1))}`}
-              title={`Previous month, ${monthLabel(shiftMonth(monthKey, -1))}`}
-            >
-              <span aria-hidden="true">←</span>
-            </button>
-            <button
-              type="button"
-              className="month-nav-current"
-              onClick={() => setMonthKey(currentMonthKey())}
-              aria-label={`Jump to current month, ${monthLabel(currentMonthKey())}`}
-              title={isCurrentMonth ? "This month" : "Jump to this month"}
-            >
-              {monthLabel(monthKey)}
-            </button>
-            <button
-              type="button"
-              className="month-nav-arrow"
-              onClick={() => setMonthKey((k) => shiftMonth(k, 1))}
-              aria-label={`Next month, ${monthLabel(shiftMonth(monthKey, 1))}`}
-              title={`Next month, ${monthLabel(shiftMonth(monthKey, 1))}`}
-            >
-              <span aria-hidden="true">→</span>
-            </button>
-          </nav>
+          <div className="period-nav">
+            <fieldset className="period-toggle">
+              <legend className="visually-hidden">View by week or month</legend>
+              <div className="segmented">
+                {[
+                  ["week", "Week"],
+                  ["month", "Month"],
+                ].map(([value, label]) => (
+                  <label key={value}>
+                    <input
+                      type="radio"
+                      name="period-mode"
+                      value={value}
+                      checked={periodMode === value}
+                      onChange={() => setPeriodMode(value)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <nav className="month-nav" aria-label={periodMode === "week" ? "Week" : "Month"}>
+              <button
+                type="button"
+                className="month-nav-arrow"
+                onClick={() =>
+                  periodMode === "week"
+                    ? setWeekKey((k) => shiftWeek(k, -1))
+                    : setMonthKey((k) => shiftMonth(k, -1))
+                }
+                aria-label={`Previous ${periodMode}, ${prevPeriodLabel}`}
+                title={`Previous ${periodMode}, ${prevPeriodLabel}`}
+              >
+                <span aria-hidden="true">←</span>
+              </button>
+              <button
+                type="button"
+                className="month-nav-current"
+                onClick={() =>
+                  periodMode === "week"
+                    ? setWeekKey(currentWeekKey())
+                    : setMonthKey(currentMonthKey())
+                }
+                aria-label={`Jump to current ${periodMode}, ${currentPeriodLabel}`}
+                title={isCurrentPeriod ? `This ${periodMode}` : `Jump to this ${periodMode}`}
+              >
+                {periodLabel}
+              </button>
+              <button
+                type="button"
+                className="month-nav-arrow"
+                onClick={() =>
+                  periodMode === "week"
+                    ? setWeekKey((k) => shiftWeek(k, 1))
+                    : setMonthKey((k) => shiftMonth(k, 1))
+                }
+                aria-label={`Next ${periodMode}, ${nextPeriodLabel}`}
+                title={`Next ${periodMode}, ${nextPeriodLabel}`}
+              >
+                <span aria-hidden="true">→</span>
+              </button>
+            </nav>
+          </div>
           <button
             type="button"
             className="button button-primary header-add-button"
@@ -686,6 +781,8 @@ export default function App() {
         {view === "overview" && (
           <Overview
             state={state}
+            periodMode={periodMode}
+            weekKey={weekKey}
             monthKey={monthKey}
             onNavigate={setView}
             onAddEntry={openAddEntry}
@@ -695,9 +792,15 @@ export default function App() {
         {view === "transactions" && (
           <Transactions
             state={state}
+            periodMode={periodMode}
+            weekKey={weekKey}
             monthKey={monthKey}
+            defaultDate={defaultDate}
             onAddEntry={openAddEntry}
+            onQuickAdd={saveEntry}
+            onMakeRepeating={openRepeatingEntry}
             onEditTxn={openEditEntry}
+            onUpdateTxnAmount={updateTxnAmount}
             onDeleteTxn={deleteEntry}
             onToggleRule={toggleRule}
             onDeleteRule={deleteRule}
@@ -706,6 +809,8 @@ export default function App() {
         {view === "budgets" && (
           <Budgets
             state={state}
+            periodMode={periodMode}
+            weekKey={weekKey}
             monthKey={monthKey}
             onSetBudget={setBudget}
             onRenameCategory={renameCategory}
@@ -755,6 +860,7 @@ export default function App() {
       <EntryDialog
         open={dialog !== null}
         initial={dialog?.txn || null}
+        prefill={dialog?.prefill || null}
         defaultDate={dialog?.defaultDate || defaultDate}
         state={state}
         onClose={() => setDialog(null)}
